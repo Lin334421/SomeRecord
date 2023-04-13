@@ -1,0 +1,3061 @@
+--每个公司 commit 加减行数占比
+select company,
+       max(end_time)          end_time,
+       min(start_time) as     start_time,
+       sum(total__insertions) total__insertions,
+       sum(total__deletions)  total__deletions,
+       sum(total__lines)      total__lines,
+       sum(commit_count)      commit_count,
+       round(total__insertions/(select sum(total__insertions) from gits where search_key__repo = 'linux' and if_merged = 0)*100,3) as insertions_percentage,
+       round(total__deletions/(select sum(total__deletions) from gits where search_key__repo = 'linux' and if_merged = 0)*100,3) as deletions_percentage,
+       round(total__lines/(select sum(total__lines) from gits where search_key__repo = 'linux' and if_merged = 0)*100,3) as all_lines_percentage,
+       round(commit_count/(select count() from gits where search_key__repo = 'linux' and if_merged = 0)*100,3) as commit_percentage
+from (select multiIf(email_domain like '%huawei%' or email_domain = 'hisilicon.com', 'huawei',
+                     email_domain like '%google%' or email_domain = 'android.com' or email_domain = 'chrome.com' or
+                     email_domain = 'chromium.org' or email_domain = 'tensorflow.org', 'google',
+                     email_domain like '%intel%', 'intel', 'redhat') as company,
+             end_time,
+             start_time,
+             total__insertions,
+             total__deletions,
+             total__lines,
+             commit_count
+      from (select splitByChar('@', author_email)[2] as email_domain,
+                   max(authored_date)                as end_time,
+                   min(authored_date)                as start_time,
+                   sum(total__insertions)            as total__insertions,
+                   sum(total__deletions)             as total__deletions,
+                   sum(total__lines)                 as total__lines,
+                   count()                           as commit_count
+            from gits
+            where if_merged = 0
+              and search_key__repo = 'linux'
+              and (email_domain like '%intel%' or email_domain like '%google%' or email_domain like '%redhat%' or
+                   email_domain like '%huawei%' or email_domain = 'android.com' or email_domain = 'chrome.com' or
+                   email_domain = 'chromium.org' or email_domain = 'tensorflow.org' or email_domain = 'hisilicon.com' or
+                   email_domain = 'china.huawei.com')
+            group by email_domain
+            order by total__lines desc))
+group by company
+order by total__lines desc
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+-- rust 华为专家 metrics
+select if(a.login != '', a.login, b.login) as login,
+       create_issues_count,
+       issues_comments_count,
+       create_pr_count,
+       reviewed_count,
+       commit_committer_count from (select if(a.login != '', a.login, b.login) as login,
+       create_issues_count,
+       create_pr_count,
+       reviewed_count,
+       commit_committer_count
+from (select if(a.login != '', a.login, b.login) as login, create_issues_count, create_pr_count, reviewed_count
+      from (select if(a.login != '', a.login, b.login) as login, create_issues_count, create_pr_count
+            from (-- 统计issues提出次数 近三年
+                     select login, count() as create_issues_count
+                     from (select argMax(user__login, created_at) as login
+                           from github_issues
+                           where search_key__repo = 'rust'
+                             and pull_request__url = ''
+                             and toYear(created_at) >= 2018
+                           group by node_id)
+                     where login global in ('Amanieu',
+                                            'bdqnghi',
+                                            'davidtwco',
+                                            'GuillaumeGomez',
+                                            'J-ZhengLi',
+                                            'KarliosQu',
+                                            'lcnr',
+                                            'LuuuXXX',
+                                            'm-ou-se',
+                                            'MabinGo',
+                                            'MichaelLing83',
+                                            'mojave2',
+                                            'petrochenkov',
+                                            'QiangHeisenberg',
+                                            'Sea-Chunmiao',
+                                            'SparrowLii',
+                                            'stevetan81',
+                                            'surechen',
+                                            'wain303009',
+                                            'wangkirin',
+                                            'yijunyu')
+                     group by login
+                     order by create_issues_count desc) as a global
+                     full join (-- 统计pr提出次数 近三年
+                select login, count() as create_pr_count
+                from (select argMax(user__login, created_at) as login
+                      from github_pull_requests
+                      where search_key__repo = 'rust'
+                        and toYear(created_at) >= 2018
+                      group by node_id)
+                where login global in ('Amanieu',
+                                       'bdqnghi',
+                                       'davidtwco',
+                                       'GuillaumeGomez',
+                                       'J-ZhengLi',
+                                       'KarliosQu',
+                                       'lcnr',
+                                       'LuuuXXX',
+                                       'm-ou-se',
+                                       'MabinGo',
+                                       'MichaelLing83',
+                                       'mojave2',
+                                       'petrochenkov',
+                                       'QiangHeisenberg',
+                                       'Sea-Chunmiao',
+                                       'SparrowLii',
+                                       'stevetan81',
+                                       'surechen',
+                                       'wain303009',
+                                       'wangkirin',
+                                       'yijunyu')
+                group by login
+                order by create_pr_count desc) as b on a.login = b.login) as a global
+               full join (select login, count() reviewed_count
+                          from (select JSONExtractString(timeline_raw, 'node_id')            as node_id,
+                                       JSONExtractString(JSONExtractString(argMax(timeline_raw,
+                                                                                  parseDateTimeBestEffort(JSONExtractString(timeline_raw, 'submitted_at'))),
+                                                                           'user'), 'login') as login
+                                from github_issues_timeline
+                                where search_key__repo = 'rust'
+                                  and toYear(parseDateTimeBestEffort(JSONExtractString(timeline_raw, 'submitted_at'))) >=
+                                      2018
+                                  and search_key__event = 'reviewed'
+
+                                group by node_id)
+                          where login global in ('Amanieu',
+                                                 'bdqnghi',
+                                                 'davidtwco',
+                                                 'GuillaumeGomez',
+                                                 'J-ZhengLi',
+                                                 'KarliosQu',
+                                                 'lcnr',
+                                                 'LuuuXXX',
+                                                 'm-ou-se',
+                                                 'MabinGo',
+                                                 'MichaelLing83',
+                                                 'mojave2',
+                                                 'petrochenkov',
+                                                 'QiangHeisenberg',
+                                                 'Sea-Chunmiao',
+                                                 'SparrowLii',
+                                                 'stevetan81',
+                                                 'surechen',
+                                                 'wain303009',
+                                                 'wangkirin',
+                                                 'yijunyu')
+                          group by login
+                          order by reviewed_count desc) as b on a.login = b.login) as a global
+         full join (-- 作为一个committer
+    select login, count() as commit_committer_count
+    from (select sha, argMax(committer__login, commit__committer__date) as login
+          from github_commits
+          where search_key__repo = 'rust'
+            and toYear(commit__committer__date) >= 2018
+            and committer__login global in ('Amanieu',
+                                            'bdqnghi',
+                                            'davidtwco',
+                                            'GuillaumeGomez',
+                                            'J-ZhengLi',
+                                            'KarliosQu',
+                                            'lcnr',
+                                            'LuuuXXX',
+                                            'm-ou-se',
+                                            'MabinGo',
+                                            'MichaelLing83',
+                                            'mojave2',
+                                            'petrochenkov',
+                                            'QiangHeisenberg',
+                                            'Sea-Chunmiao',
+                                            'SparrowLii',
+                                            'stevetan81',
+                                            'surechen',
+                                            'wain303009',
+                                            'wangkirin',
+                                            'yijunyu')
+          group by sha)
+    group by login
+    order by commit_committer_count desc) as b on a.login = b.login) as a global full join (select login,count() as issues_comments_count from (select node_id,argMax(user__login,created_at) as login from github_issues_comments where search_key__repo = 'rust' and user__login global in ('Amanieu',
+                                            'bdqnghi',
+                                            'davidtwco',
+                                            'GuillaumeGomez',
+                                            'J-ZhengLi',
+                                            'KarliosQu',
+                                            'lcnr',
+                                            'LuuuXXX',
+                                            'm-ou-se',
+                                            'MabinGo',
+                                            'MichaelLing83',
+                                            'mojave2',
+                                            'petrochenkov',
+                                            'QiangHeisenberg',
+                                            'Sea-Chunmiao',
+                                            'SparrowLii',
+                                            'stevetan81',
+                                            'surechen',
+                                            'wain303009',
+                                            'wangkirin',
+                                            'yijunyu') and toYear(created_at) >= 2018
+            and search_key__number global in  (select number from github_issues where github_issues.search_key__repo='rust' and  pull_request__url = '' group by number)
+ group by node_id) group by login order by issues_comments_count desc) as b on a.login = b.login
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+---------------------------------------------------------------llvm cn author commit次数更改代码行数，文件修改情况  按照月份
+
+-- not merge author
+select author_email,
+       count() as      commit_count,
+       sum(insertions) insertions,
+       sum(deletions)  deletions,
+       sum(lines)      lines,
+        sum(files) as files_count
+from (select *,
+             splitByChar('@', author_email)[2]    as author_email_domain,
+             splitByChar('@', committer_email)[2] as committer_email_domain
+      from (select hexsha,
+                   author_email,
+                   authored_date,
+                   committer_email,
+                   committed_date,
+                   message,
+                   total__lines as insertions,
+                   total__insertions as deletions,
+                   total__deletions as lines,
+                   total__files as files
+            from gits
+            where search_key__repo = 'llvm-project'
+              and if_merged = 0
+              and search_key__owner = 'llvm'
+              and (author_email like '%.cn%' or gits.committer_email like '%.cn%')
+            group by hexsha, author_email,
+                     authored_date,
+                     committer_email,
+                     committed_date,
+                     message,
+                     total__insertions,
+                     total__deletions,
+                     total__files,
+                     total__lines
+)
+         --where author_email like '%iscas.ac.cn%'
+         )
+group by author_email
+order by commit_count desc
+
+
+
+
+
+
+
+-- not merge author month
+select author_email,
+       month,
+       count() as      commit_count,
+       sum(insertions) insertions,
+       sum(deletions)  deletions,
+       sum(lines)      lines,
+        sum(files) as files_count
+from (select *,
+             splitByChar('@', author_email)[2]    as author_email_domain,
+             splitByChar('@', committer_email)[2] as committer_email_domain
+      from (select hexsha,
+                   author_email,
+                   authored_date,
+                   committer_email,
+                   committed_date,
+                   message,
+                   total__lines as insertions,
+                   total__insertions as deletions,
+                   total__deletions as lines,
+                   total__files as files
+            from gits
+            where search_key__repo = 'llvm-project'
+              and if_merged = 0
+              and search_key__owner = 'llvm'
+              and (author_email like '%.cn%' or gits.committer_email like '%.cn%')
+            group by hexsha, author_email,
+                     authored_date,
+                     committer_email,
+                     committed_date,
+                     message,
+                     total__insertions,
+                     total__deletions,
+                     total__files,
+                     total__lines
+)
+         --where author_email like '%iscas.ac.cn%'
+         )
+group by author_email,toYYYYMM(authored_date) as month
+order by author_email ,month
+
+
+
+
+;
+--dir
+select author_email,file_name,insertions,deletions,lines from (select *,
+             splitByChar('@', author_email)[2]    as author_email_domain,
+             splitByChar('@', committer_email)[2] as committer_email_domain
+      from (select hexsha,
+                   author_email,
+                   authored_date,
+                   committer_email,
+                   committed_date,
+                   message,
+                   `files.file_name` as file_name,
+                   `files.insertions` as insertions,
+                   `files.deletions` as deletions,
+                   `files.lines` as lines
+            from gits
+            where search_key__repo = 'llvm-project'
+              and search_key__owner = 'llvm'
+              and if_merged = 0
+              and (author_email like '%.cn%' or gits.committer_email like '%.cn%')
+            group by hexsha, author_email,
+                     authored_date,
+                     committer_email,
+                     committed_date,
+                     message,
+                     `files.file_name`,
+                     `files.insertions`,
+                     `files.deletions`,
+                     `files.lines`)
+         --where author_email like '%iscas.ac.cn%'
+         ) array join file_name,insertions,deletions,lines
+order by author_email
+
+
+
+
+
+
+
+
+
+
+
+-- dir month
+;
+select author_email,
+       month,
+       file_name,
+       sum(insertions) as insertions,
+       sum(deletions)  as deletions,
+       sum(lines)      as lines
+from (select author_email, authored_date, file_name, insertions, deletions, lines
+      from (select *,
+                   splitByChar('@', author_email)[2]    as author_email_domain,
+                   splitByChar('@', committer_email)[2] as committer_email_domain
+            from (select hexsha,
+                         author_email,
+                         authored_date,
+                         committer_email,
+                         committed_date,
+                         message,
+                         `files.file_name`  as file_name,
+                         `files.insertions` as insertions,
+                         `files.deletions`  as deletions,
+                         `files.lines`      as lines
+                  from gits
+                  where search_key__repo = 'llvm-project'
+                    and search_key__owner = 'llvm'
+                    and if_merged = 0
+                    and (author_email like '%.cn%' or gits.committer_email like '%.cn%')
+                  group by hexsha, author_email,
+                           authored_date,
+                           committer_email,
+                           committed_date,
+                           message,
+                           `files.file_name`,
+                           `files.insertions`,
+                           `files.deletions`,
+                           `files.lines`)
+               --where author_email like '%iscas.ac.cn%'
+               ) array join file_name, insertions, deletions, lines)
+group by author_email, toYYYYMM(authored_date) as month, file_name
+order by author_email, month, file_name
+
+
+
+
+
+-- committer
+
+select committer_email,
+       count() as      commit_count
+from (select *,
+             splitByChar('@', author_email)[2]    as author_email_domain,
+             splitByChar('@', committer_email)[2] as committer_email_domain
+      from (select hexsha,
+                   author_email,
+                   authored_date,
+                   committer_email,
+                   committed_date
+            from gits
+            where search_key__repo = 'llvm-project'
+              and search_key__owner = 'llvm'
+              and (author_email like '%.cn%' or gits.committer_email like '%.cn%')
+            group by hexsha, author_email,
+                     authored_date,
+                     committer_email,
+                     committed_date
+
+)
+         --where author_email like '%iscas.ac.cn%'
+         )
+group by committer_email
+order by commit_count desc
+
+
+
+-- committer month
+
+select committer_email,month,
+       count() as      commit_count
+from (select *,
+             splitByChar('@', author_email)[2]    as author_email_domain,
+             splitByChar('@', committer_email)[2] as committer_email_domain
+      from (select hexsha,
+                   author_email,
+                   authored_date,
+                   committer_email,
+                   committed_date
+            from gits
+            where search_key__repo = 'llvm-project'
+              and search_key__owner = 'llvm'
+              and (author_email like '%.cn%' or gits.committer_email like '%.cn%')
+            group by hexsha, author_email,
+                     authored_date,
+                     committer_email,
+                     committed_date
+
+)
+         --where author_email like '%iscas.ac.cn%'
+         )
+group by committer_email,toYYYYMM(committed_date) as month
+order by committer_email,month
+
+
+
+select a.github_id,a.email,b.company from github_id_email_map as a global  join (
+    (
+-- huawei
+select *,toUnixTimestamp(now()) as timestamp,'huawei' as company from (select email
+from (select author_email as email
+      from gits
+      group by author_email
+      union all
+      select committer_email as email
+      from gits
+      group by committer_email)
+group by email) where splitByChar('@', email)[2] = 'huawei.com' or
+       splitByChar('@', email)[2] = 'hisilicon.com' or
+       splitByChar('@', email)[2] = 'huawei.partners.com' or
+       splitByChar('@', email)[2] = 'china.huawei.com' or
+       splitByChar('@', email)[2] = 'notesmail.huawei.com' or
+       splitByChar('@', email)[2] = 'ohos.com.cn' or
+       email like '%huawei%'
+                      or
+       email global in (select email
+                               from github_id_email_map
+                               where github_id global in
+                                     (select id
+                                      from github_profile
+                                      where final_company_inferred_from_company = 'huawei'
+                                      group by id)
+
+                               group by email)
+
+union all
+
+
+--google
+select *, toUnixTimestamp(now()) as timestamp, 'google' as company
+from (select email
+      from (select author_email as email
+            from gits
+            group by author_email
+            union all
+            select committer_email as email
+            from gits
+            group by committer_email)
+      group by email)
+where splitByChar('@', email)[2] = 'android.com'
+   or splitByChar('@', email)[2] = 'chrome.com'
+   or splitByChar('@', email)[2] = 'chromium.org'
+   or splitByChar('@', email)[2] = 'google.com'
+   or splitByChar('@', email)[2] = 'tensorflow.org'
+   or email like '%google%'
+   or email global in (select email
+                       from github_id_email_map
+                       where github_id global in
+                             (select id
+                              from github_profile
+                              where final_company_inferred_from_company = 'google'
+                              group by id)
+
+                       group by email)
+
+union all
+
+-- facebook
+select *, toUnixTimestamp(now()) as timestamp, 'meta' as company
+from (select email
+      from (select author_email as email
+            from gits
+            group by author_email
+            union all
+            select committer_email as email
+            from gits
+            group by committer_email)
+      group by email)
+where splitByChar('@', email)[2] = 'fb.com'
+   or splitByChar('@', email)[2] = 'meta.com'
+   or email like '%facebook%'
+   or email global in (select email
+                       from github_id_email_map
+                       where github_id global in
+                             (select id
+                              from github_profile
+                              where final_company_inferred_from_company = 'facebook'
+                              group by id)
+
+                       group by email)
+
+union all
+
+-- intel
+select *, toUnixTimestamp(now()) as timestamp, 'intel' as company
+from (select email
+      from (select author_email as email
+            from gits
+            group by author_email
+            union all
+            select committer_email as email
+            from gits
+            group by committer_email)
+      group by email)
+where
+                  splitByChar('@', email)[2] = 'intel.com' or
+                  email like '%intel%'
+                      or
+                  email global in (select email
+                                          from github_id_email_map
+                                          where github_id global in
+                                                (select id
+                                                 from github_profile
+                                                 where final_company_inferred_from_company = 'intel'
+                                                 group by id)
+
+                                          group by email)
+
+union all
+
+
+
+
+-- redhat
+select *, toUnixTimestamp(now()) as timestamp, 'redhat' as company
+from (select email
+      from (select author_email as email
+            from gits
+            group by author_email
+            union all
+            select committer_email as email
+            from gits
+            group by committer_email)
+      group by email)
+where
+                  splitByChar('@', email)[2] = 'redhat.com' or
+                  email like '%redhat%'
+                      or
+                  email global in (select email
+                                          from github_id_email_map
+                                          where github_id global in
+                                                (select id
+                                                 from github_profile
+                                                 where final_company_inferred_from_company = 'red hat'
+                                                 group by id)
+
+                                          group by email)
+
+union all
+--amd
+select *, toUnixTimestamp(now()) as timestamp, 'amd' as company
+from (select email
+      from (select author_email as email
+            from gits
+            group by author_email
+            union all
+            select committer_email as email
+            from gits
+            group by committer_email)
+      group by email)
+where
+                   splitByChar('@', email)[2] = 'amd.com' or
+                  email global in (select email
+                                          from github_id_email_map
+                                          where github_id global in
+                                                (select id
+                                                 from github_profile
+                                                 where final_company_inferred_from_company = 'amd'
+                                                 group by id)
+
+                                          group by email)
+union all
+--  amazon
+select *, toUnixTimestamp(now()) as timestamp, 'amazon' as company
+from (select email
+      from (select author_email as email
+            from gits
+            group by author_email
+            union all
+            select committer_email as email
+            from gits
+            group by committer_email)
+      group by email)
+where   splitByChar('@', email)[2] = 'amazon.com' or
+                  email like '%amazon%'
+                      or
+                  email global in (select email
+                                          from github_id_email_map
+                                          where github_id!=0 and  github_id global in
+                                                (select id
+                                                 from github_profile
+                                                 where final_company_inferred_from_company = 'amazon'
+                                                 group by id)
+
+                                          group by email))) as b on  a.email = b.email
+
+
+
+;
+-- 各个公司pr情况
+select
+    search_key__owner,search_key__repo,year,company,count() as pr_count from (select search_key__owner,search_key__repo,number,toYear(created_at) as year,b.company from (-- pr 的提出
+select * from github_pull_requests where ((search_key__owner = 'apache' and search_key__repo = 'activemq')
+    or (search_key__owner = 'apache' and search_key__repo = 'kyuubi')
+    or (search_key__owner = 'apache' and search_key__repo = 'bahir')
+    or (search_key__owner = 'apache' and search_key__repo = 'phoenix')
+    or (search_key__owner = 'apache' and search_key__repo = 'beam')
+    or (search_key__owner = 'apache' and search_key__repo = 'ranger')
+    or (search_key__owner = 'apache' and search_key__repo = 'cassandra')
+    or (search_key__owner = 'apache' and search_key__repo = 'spark')
+    or (search_key__owner = 'apache' and search_key__repo = 'flink')
+    or (search_key__owner = 'apache' and search_key__repo = 'storm')
+    or (search_key__owner = 'apache' and search_key__repo = 'hadoop')
+    or (search_key__owner = 'apache' and search_key__repo = 'zookeeper')
+    or (search_key__owner = 'apache' and search_key__repo = 'hbase')
+    or (search_key__owner = 'elastic' and search_key__repo = 'elasticsearch')
+    or (search_key__owner = 'apache' and search_key__repo = 'hive')
+    or (search_key__owner = 'greenplum-db' and search_key__repo = 'gpdb')
+    or (search_key__owner = 'apache' and search_key__repo = 'hudi')
+    or (search_key__owner = 'apache' and search_key__repo = 'impala')
+    or (search_key__owner = 'apache' and search_key__repo = 'arrow-julia')
+    or (search_key__owner = 'o3de' and search_key__repo = 'o3de')
+    or (search_key__owner = 'onnx' and search_key__repo = 'onnx')
+    or (search_key__owner = 'apache' and search_key__repo = 'tvm')
+    or (search_key__owner = 'Kitware' and search_key__repo = 'CMake')
+    or (search_key__owner = 'llvm' and search_key__repo = 'llvm-project')
+    or (search_key__owner = 'linux-test-project' and search_key__repo = 'ltp')
+    or (search_key__owner = 'apache' and search_key__repo = 'maven')
+    or (search_key__owner = 'apache' and search_key__repo = 'calcite')
+    or (search_key__owner = 'apache' and search_key__repo = 'kudu')
+    or (search_key__owner = 'MariaDB' and search_key__repo = 'server')
+    or (search_key__owner = 'mongodb' and search_key__repo = 'mongo')
+    or (search_key__owner = 'mysql' and search_key__repo = 'mysql-server')
+    or (search_key__owner = 'redis' and search_key__repo = 'redis')
+    or (search_key__owner = 'facebook' and search_key__repo = 'rocksdb')
+    or (search_key__owner = 'php' and search_key__repo = 'php-src')
+    or (search_key__owner = 'python' and search_key__repo = 'cpython')
+    or (search_key__owner = 'rust-lang' and search_key__repo = 'rust')
+    or (search_key__owner = 'ruby' and search_key__repo = 'ruby')
+    or (search_key__owner = 'kubernetes' and search_key__repo = 'kubernetes')
+    or (search_key__owner = 'apache' and search_key__repo = 'mesos')
+    or (search_key__owner = 'apache' and search_key__repo = 'skywalking')
+    or (search_key__owner = 'libvirt' and search_key__repo = 'libvirt')
+    or (search_key__owner = 'ceph' and search_key__repo = 'ceph')
+    or (search_key__owner = 'nats-io' and search_key__repo = 'nats-server')
+    or (search_key__owner = 'openvswitch' and search_key__repo = 'ovs')
+    or (search_key__owner = 'containerd' and search_key__repo = 'containerd')
+    or (search_key__owner = 'coredns' and search_key__repo = 'coredns')
+    or (search_key__owner = 'operator-framework' and search_key__repo = 'operator-sdk')
+    or (search_key__owner = 'cri-o' and search_key__repo = 'cri-o')
+    or (search_key__owner = 'prometheus' and search_key__repo = 'prometheus')
+    or (search_key__owner = 'etcd-io' and search_key__repo = 'etcd')
+    or (search_key__owner = 'qemu' and search_key__repo = 'qemu')
+    or (search_key__owner = 'envoyproxy' and search_key__repo = 'envoy')
+    or (search_key__owner = 'helm' and search_key__repo = 'helm')
+    or (search_key__owner = 'hashicorp' and search_key__repo = 'terraform')
+    or (search_key__owner = 'istio' and search_key__repo = 'istio')
+    or (search_key__owner = 'vitessio' and search_key__repo = 'vitess')
+    or (search_key__owner = 'akraino-edge-stack' and search_key__repo = 'icn-nodus')
+    or (search_key__owner = 'DPDK' and search_key__repo = 'dpdk')
+    or (search_key__owner = 'numpy' and search_key__repo = 'numpy')
+    or (search_key__owner = 'cp2k' and search_key__repo = 'cp2k')
+    or (search_key__owner = 'QEF' and search_key__repo = 'q-e')
+    or (search_key__owner = 'wrf-model' and search_key__repo = 'WRF')
+    or (search_key__owner = 'EddyRivasLab' and search_key__repo = 'hmmer')
+    or (search_key__owner = 'lammps' and search_key__repo = 'lammps')
+    or (search_key__owner = 'apache' and search_key__repo = 'camel')
+    or (search_key__owner = 'grpc' and search_key__repo = 'grpc')
+    or (search_key__owner = 'apache' and search_key__repo = 'thrift')
+    or (search_key__owner = 'apache' and search_key__repo = 'httpd')
+    or (search_key__owner = 'apache' and search_key__repo = 'tomcat')
+    or (search_key__owner = 'haproxy' and search_key__repo = 'haproxy')
+    or (search_key__owner = 'apache' and search_key__repo = 'groovy')
+    or (search_key__owner = 'kubeflow' and search_key__repo = 'kubeflow')
+    or (search_key__owner = 'eclipse-ee4j' and search_key__repo = 'glassfish')
+    or (search_key__owner = 'apache' and search_key__repo = 'kafka')
+    or (search_key__owner = 'memcached' and search_key__repo = 'memcached')
+    or (search_key__owner = 'squid-cache' and search_key__repo = 'squid')
+    or (search_key__owner = 'apache' and search_key__repo = 'karaf')
+    or (search_key__owner = 'netty' and search_key__repo = 'netty')
+    or (search_key__owner = 'varnishcache' and search_key__repo = 'varnish-cache')
+    or (search_key__owner = 'apache' and search_key__repo = 'struts')
+    or (search_key__owner = 'nginx' and search_key__repo = 'nginx')
+    or (search_key__owner = 'apache' and search_key__repo = 'zeppelin')
+    or (search_key__owner = 'openeuler-mirror' and search_key__repo = 'A-Tune')
+    or (search_key__owner = 'gcc-mirror' and search_key__repo = 'gcc')
+    or (search_key__owner = 'bminor' and search_key__repo = 'glibc')
+    or (search_key__owner = 'coreos' and search_key__repo = 'grub')
+    or (search_key__owner = 'intel' and search_key__repo = 'hyperscan')
+    or (search_key__owner = 'intel' and search_key__repo = 'isa-l')
+    or (search_key__owner = 'torvalds' and search_key__repo = 'linux')
+    or (search_key__owner = 'bminor' and search_key__repo = 'musl')
+    or (search_key__owner = 'opencv' and search_key__repo = 'opencv')
+    or (search_key__owner = 'openssl' and search_key__repo = 'openssl')
+    or (search_key__owner = 'openzfs' and search_key__repo = 'zfs')
+    or (search_key__owner = 'google' and search_key__repo = 'snappy')
+    or (search_key__owner = 'videolan' and search_key__repo = 'x265')
+    or (search_key__owner = 'madler' and search_key__repo = 'zlib')
+    or (search_key__owner = 'facebook' and search_key__repo = 'zstd')
+    or (search_key__owner = 'persona-id' and search_key__repo = 'persona-ios-sdk')
+    or (search_key__owner = 'persona-id' and search_key__repo = 'persona-android-sdk')
+    or (search_key__owner = 'WebAssembly' and search_key__repo = 'WASI')
+    or (search_key__owner = 'WebAssembly' and search_key__repo = 'gc')
+    or (search_key__owner = 'adoptium' and search_key__repo = 'temurin-build')
+    or (search_key__owner = 'adoptium' and search_key__repo = 'aqa-tests')
+    or (search_key__owner = 'adoptium' and search_key__repo = 'installer')
+    or (search_key__owner = 'adoptium' and search_key__repo = 'containers')
+    or (search_key__owner = 'openjdk' and search_key__repo = 'jdk')
+    or (search_key__owner = 'codenotary' and search_key__repo = 'kube-notary')
+    or (search_key__owner = 'codenotary' and search_key__repo = 'merkletree')
+    or (search_key__owner = 'codenotary' and search_key__repo = 'immuproof')
+    or (search_key__owner = 'codenotary' and search_key__repo = 'immudb')
+    or (search_key__owner = 'codenotary' and search_key__repo = 'cas')
+    or (search_key__owner = 'oVirt' and search_key__repo = 'ovirt-engine')
+    or (search_key__owner = 'onap' and search_key__repo = 'sdc')
+    or (search_key__owner = 'onap' and search_key__repo = 'multicloud-k8s')
+    or (search_key__owner = 'onap' and search_key__repo = 'oom')
+    or (search_key__owner = 'onap' and search_key__repo = 'ccsdk-cds')
+    or (search_key__owner = 'onap' and search_key__repo = 'so'))) as a global join (select a.github_id,a.email,b.company from github_id_email_map as a global  join (
+    (
+-- huawei
+select *,toUnixTimestamp(now()) as timestamp,'huawei' as company from (select email
+from (select author_email as email
+      from gits
+      group by author_email
+      union all
+      select committer_email as email
+      from gits
+      group by committer_email)
+group by email) where splitByChar('@', email)[2] = 'huawei.com' or
+       splitByChar('@', email)[2] = 'hisilicon.com' or
+       splitByChar('@', email)[2] = 'huawei.partners.com' or
+       splitByChar('@', email)[2] = 'china.huawei.com' or
+       splitByChar('@', email)[2] = 'notesmail.huawei.com' or
+       splitByChar('@', email)[2] = 'ohos.com.cn' or
+       email like '%huawei%'
+                      or
+       email global in (select email
+                               from github_id_email_map
+                               where github_id global in
+                                     (select id
+                                      from github_profile
+                                      where final_company_inferred_from_company = 'huawei'
+                                      group by id)
+
+                               group by email)
+
+union all
+
+
+--google
+select *, toUnixTimestamp(now()) as timestamp, 'google' as company
+from (select email
+      from (select author_email as email
+            from gits
+            group by author_email
+            union all
+            select committer_email as email
+            from gits
+            group by committer_email)
+      group by email)
+where splitByChar('@', email)[2] = 'android.com'
+   or splitByChar('@', email)[2] = 'chrome.com'
+   or splitByChar('@', email)[2] = 'chromium.org'
+   or splitByChar('@', email)[2] = 'google.com'
+   or splitByChar('@', email)[2] = 'tensorflow.org'
+   or email like '%google%'
+   or email global in (select email
+                       from github_id_email_map
+                       where github_id global in
+                             (select id
+                              from github_profile
+                              where final_company_inferred_from_company = 'google'
+                              group by id)
+
+                       group by email)
+
+union all
+
+-- facebook
+select *, toUnixTimestamp(now()) as timestamp, 'meta' as company
+from (select email
+      from (select author_email as email
+            from gits
+            group by author_email
+            union all
+            select committer_email as email
+            from gits
+            group by committer_email)
+      group by email)
+where splitByChar('@', email)[2] = 'fb.com'
+   or splitByChar('@', email)[2] = 'meta.com'
+   or email like '%facebook%'
+   or email global in (select email
+                       from github_id_email_map
+                       where github_id global in
+                             (select id
+                              from github_profile
+                              where final_company_inferred_from_company = 'facebook'
+                              group by id)
+
+                       group by email)
+
+union all
+
+-- intel
+select *, toUnixTimestamp(now()) as timestamp, 'intel' as company
+from (select email
+      from (select author_email as email
+            from gits
+            group by author_email
+            union all
+            select committer_email as email
+            from gits
+            group by committer_email)
+      group by email)
+where
+                  splitByChar('@', email)[2] = 'intel.com' or
+                  email like '%intel%'
+                      or
+                  email global in (select email
+                                          from github_id_email_map
+                                          where github_id global in
+                                                (select id
+                                                 from github_profile
+                                                 where final_company_inferred_from_company = 'intel'
+                                                 group by id)
+
+                                          group by email)
+
+union all
+
+
+
+
+-- redhat
+select *, toUnixTimestamp(now()) as timestamp, 'redhat' as company
+from (select email
+      from (select author_email as email
+            from gits
+            group by author_email
+            union all
+            select committer_email as email
+            from gits
+            group by committer_email)
+      group by email)
+where
+                  splitByChar('@', email)[2] = 'redhat.com' or
+                  email like '%redhat%'
+                      or
+                  email global in (select email
+                                          from github_id_email_map
+                                          where github_id global in
+                                                (select id
+                                                 from github_profile
+                                                 where final_company_inferred_from_company = 'red hat'
+                                                 group by id)
+
+                                          group by email)
+
+union all
+--amd
+select *, toUnixTimestamp(now()) as timestamp, 'amd' as company
+from (select email
+      from (select author_email as email
+            from gits
+            group by author_email
+            union all
+            select committer_email as email
+            from gits
+            group by committer_email)
+      group by email)
+where
+                   splitByChar('@', email)[2] = 'amd.com' or
+                  email global in (select email
+                                          from github_id_email_map
+                                          where github_id global in
+                                                (select id
+                                                 from github_profile
+                                                 where final_company_inferred_from_company = 'amd'
+                                                 group by id)
+
+                                          group by email)
+union all
+--  amazon
+select *, toUnixTimestamp(now()) as timestamp, 'amazon' as company
+from (select email
+      from (select author_email as email
+            from gits
+            group by author_email
+            union all
+            select committer_email as email
+            from gits
+            group by committer_email)
+      group by email)
+where   splitByChar('@', email)[2] = 'amazon.com' or
+                  email like '%amazon%'
+                      or
+                  email global in (select email
+                                          from github_id_email_map
+                                          where github_id!=0 and  github_id global in
+                                                (select id
+                                                 from github_profile
+                                                 where final_company_inferred_from_company = 'amazon'
+                                                 group by id)
+
+                                          group by email))) as b on  a.email = b.email) as b
+on a.user__id = b.github_id) group by search_key__owner,search_key__repo,year,company
+order by search_key__owner,search_key__repo,year,pr_count desc
+
+
+-- pr comment
+;
+select
+    search_key__owner,search_key__repo,year,company,count() as pr_comment_count from (select search_key__owner,search_key__repo,number,user__id,toYear(created_at) as year
+from github_issues_comments global
+         join (select search_key__owner, search_key__repo, number
+               from github_pull_requests
+               where (search_key__owner = 'apache' and search_key__repo = 'activemq')
+                  or (search_key__owner = 'apache' and search_key__repo = 'kyuubi')
+                  or (search_key__owner = 'apache' and search_key__repo = 'bahir')
+                  or (search_key__owner = 'apache' and search_key__repo = 'phoenix')
+                  or (search_key__owner = 'apache' and search_key__repo = 'beam')
+                  or (search_key__owner = 'apache' and search_key__repo = 'ranger')
+                  or (search_key__owner = 'apache' and search_key__repo = 'cassandra')
+                  or (search_key__owner = 'apache' and search_key__repo = 'spark')
+                  or (search_key__owner = 'apache' and search_key__repo = 'flink')
+                  or (search_key__owner = 'apache' and search_key__repo = 'storm')
+                  or (search_key__owner = 'apache' and search_key__repo = 'hadoop')
+                  or (search_key__owner = 'apache' and search_key__repo = 'zookeeper')
+                  or (search_key__owner = 'apache' and search_key__repo = 'hbase')
+                  or (search_key__owner = 'elastic' and search_key__repo = 'elasticsearch')
+                  or (search_key__owner = 'apache' and search_key__repo = 'hive')
+                  or (search_key__owner = 'greenplum-db' and search_key__repo = 'gpdb')
+                  or (search_key__owner = 'apache' and search_key__repo = 'hudi')
+                  or (search_key__owner = 'apache' and search_key__repo = 'impala')
+                  or (search_key__owner = 'apache' and search_key__repo = 'arrow-julia')
+                  or (search_key__owner = 'o3de' and search_key__repo = 'o3de')
+                  or (search_key__owner = 'onnx' and search_key__repo = 'onnx')
+                  or (search_key__owner = 'apache' and search_key__repo = 'tvm')
+                  or (search_key__owner = 'Kitware' and search_key__repo = 'CMake')
+                  or (search_key__owner = 'llvm' and search_key__repo = 'llvm-project')
+                  or (search_key__owner = 'linux-test-project' and search_key__repo = 'ltp')
+                  or (search_key__owner = 'apache' and search_key__repo = 'maven')
+                  or (search_key__owner = 'apache' and search_key__repo = 'calcite')
+                  or (search_key__owner = 'apache' and search_key__repo = 'kudu')
+                  or (search_key__owner = 'MariaDB' and search_key__repo = 'server')
+                  or (search_key__owner = 'mongodb' and search_key__repo = 'mongo')
+                  or (search_key__owner = 'mysql' and search_key__repo = 'mysql-server')
+                  or (search_key__owner = 'redis' and search_key__repo = 'redis')
+                  or (search_key__owner = 'facebook' and search_key__repo = 'rocksdb')
+                  or (search_key__owner = 'php' and search_key__repo = 'php-src')
+                  or (search_key__owner = 'python' and search_key__repo = 'cpython')
+                  or (search_key__owner = 'rust-lang' and search_key__repo = 'rust')
+                  or (search_key__owner = 'ruby' and search_key__repo = 'ruby')
+                  or (search_key__owner = 'kubernetes' and search_key__repo = 'kubernetes')
+                  or (search_key__owner = 'apache' and search_key__repo = 'mesos')
+                  or (search_key__owner = 'apache' and search_key__repo = 'skywalking')
+                  or (search_key__owner = 'libvirt' and search_key__repo = 'libvirt')
+                  or (search_key__owner = 'ceph' and search_key__repo = 'ceph')
+                  or (search_key__owner = 'nats-io' and search_key__repo = 'nats-server')
+                  or (search_key__owner = 'openvswitch' and search_key__repo = 'ovs')
+                  or (search_key__owner = 'containerd' and search_key__repo = 'containerd')
+                  or (search_key__owner = 'coredns' and search_key__repo = 'coredns')
+                  or (search_key__owner = 'operator-framework' and search_key__repo = 'operator-sdk')
+                  or (search_key__owner = 'cri-o' and search_key__repo = 'cri-o')
+                  or (search_key__owner = 'prometheus' and search_key__repo = 'prometheus')
+                  or (search_key__owner = 'etcd-io' and search_key__repo = 'etcd')
+                  or (search_key__owner = 'qemu' and search_key__repo = 'qemu')
+                  or (search_key__owner = 'envoyproxy' and search_key__repo = 'envoy')
+                  or (search_key__owner = 'helm' and search_key__repo = 'helm')
+                  or (search_key__owner = 'hashicorp' and search_key__repo = 'terraform')
+                  or (search_key__owner = 'istio' and search_key__repo = 'istio')
+                  or (search_key__owner = 'vitessio' and search_key__repo = 'vitess')
+                  or (search_key__owner = 'akraino-edge-stack' and search_key__repo = 'icn-nodus')
+                  or (search_key__owner = 'DPDK' and search_key__repo = 'dpdk')
+                  or (search_key__owner = 'numpy' and search_key__repo = 'numpy')
+                  or (search_key__owner = 'cp2k' and search_key__repo = 'cp2k')
+                  or (search_key__owner = 'QEF' and search_key__repo = 'q-e')
+                  or (search_key__owner = 'wrf-model' and search_key__repo = 'WRF')
+                  or (search_key__owner = 'EddyRivasLab' and search_key__repo = 'hmmer')
+                  or (search_key__owner = 'lammps' and search_key__repo = 'lammps')
+                  or (search_key__owner = 'apache' and search_key__repo = 'camel')
+                  or (search_key__owner = 'grpc' and search_key__repo = 'grpc')
+                  or (search_key__owner = 'apache' and search_key__repo = 'thrift')
+                  or (search_key__owner = 'apache' and search_key__repo = 'httpd')
+                  or (search_key__owner = 'apache' and search_key__repo = 'tomcat')
+                  or (search_key__owner = 'haproxy' and search_key__repo = 'haproxy')
+                  or (search_key__owner = 'apache' and search_key__repo = 'groovy')
+                  or (search_key__owner = 'kubeflow' and search_key__repo = 'kubeflow')
+                  or (search_key__owner = 'eclipse-ee4j' and search_key__repo = 'glassfish')
+                  or (search_key__owner = 'apache' and search_key__repo = 'kafka')
+                  or (search_key__owner = 'memcached' and search_key__repo = 'memcached')
+                  or (search_key__owner = 'squid-cache' and search_key__repo = 'squid')
+                  or (search_key__owner = 'apache' and search_key__repo = 'karaf')
+                  or (search_key__owner = 'netty' and search_key__repo = 'netty')
+                  or (search_key__owner = 'varnishcache' and search_key__repo = 'varnish-cache')
+                  or (search_key__owner = 'apache' and search_key__repo = 'struts')
+                  or (search_key__owner = 'nginx' and search_key__repo = 'nginx')
+                  or (search_key__owner = 'apache' and search_key__repo = 'zeppelin')
+                  or (search_key__owner = 'openeuler-mirror' and search_key__repo = 'A-Tune')
+                  or (search_key__owner = 'gcc-mirror' and search_key__repo = 'gcc')
+                  or (search_key__owner = 'bminor' and search_key__repo = 'glibc')
+                  or (search_key__owner = 'coreos' and search_key__repo = 'grub')
+                  or (search_key__owner = 'intel' and search_key__repo = 'hyperscan')
+                  or (search_key__owner = 'intel' and search_key__repo = 'isa-l')
+                  or (search_key__owner = 'torvalds' and search_key__repo = 'linux')
+                  or (search_key__owner = 'bminor' and search_key__repo = 'musl')
+                  or (search_key__owner = 'opencv' and search_key__repo = 'opencv')
+                  or (search_key__owner = 'openssl' and search_key__repo = 'openssl')
+                  or (search_key__owner = 'openzfs' and search_key__repo = 'zfs')
+                  or (search_key__owner = 'google' and search_key__repo = 'snappy')
+                  or (search_key__owner = 'videolan' and search_key__repo = 'x265')
+                  or (search_key__owner = 'madler' and search_key__repo = 'zlib')
+                  or (search_key__owner = 'facebook' and search_key__repo = 'zstd')
+                  or (search_key__owner = 'persona-id' and search_key__repo = 'persona-ios-sdk')
+                  or (search_key__owner = 'persona-id' and search_key__repo = 'persona-android-sdk')
+                  or (search_key__owner = 'WebAssembly' and search_key__repo = 'WASI')
+                  or (search_key__owner = 'WebAssembly' and search_key__repo = 'gc')
+                  or (search_key__owner = 'adoptium' and search_key__repo = 'temurin-build')
+                  or (search_key__owner = 'adoptium' and search_key__repo = 'aqa-tests')
+                  or (search_key__owner = 'adoptium' and search_key__repo = 'installer')
+                  or (search_key__owner = 'adoptium' and search_key__repo = 'containers')
+                  or (search_key__owner = 'openjdk' and search_key__repo = 'jdk')
+                  or (search_key__owner = 'codenotary' and search_key__repo = 'kube-notary')
+                  or (search_key__owner = 'codenotary' and search_key__repo = 'merkletree')
+                  or (search_key__owner = 'codenotary' and search_key__repo = 'immuproof')
+                  or (search_key__owner = 'codenotary' and search_key__repo = 'immudb')
+                  or (search_key__owner = 'codenotary' and search_key__repo = 'cas')
+                  or (search_key__owner = 'oVirt' and search_key__repo = 'ovirt-engine')
+                  or (search_key__owner = 'onap' and search_key__repo = 'sdc')
+                  or (search_key__owner = 'onap' and search_key__repo = 'multicloud-k8s')
+                  or (search_key__owner = 'onap' and search_key__repo = 'oom')
+                  or (search_key__owner = 'onap' and search_key__repo = 'ccsdk-cds')
+                  or (search_key__owner = 'onap' and search_key__repo = 'so')
+               group by search_key__owner, search_key__repo, number) as b
+              on github_issues_comments.search_key__owner = b.search_key__owner and
+                 github_issues_comments.search_key__repo = b.search_key__repo
+                  and github_issues_comments.search_key__number = b.number) as a
+global join (select a.github_id,a.email,b.company from github_id_email_map as a global  join (
+    (
+-- huawei
+select *,toUnixTimestamp(now()) as timestamp,'huawei' as company from (select email
+from (select author_email as email
+      from gits
+      group by author_email
+      union all
+      select committer_email as email
+      from gits
+      group by committer_email)
+group by email) where splitByChar('@', email)[2] = 'huawei.com' or
+       splitByChar('@', email)[2] = 'hisilicon.com' or
+       splitByChar('@', email)[2] = 'huawei.partners.com' or
+       splitByChar('@', email)[2] = 'china.huawei.com' or
+       splitByChar('@', email)[2] = 'notesmail.huawei.com' or
+       splitByChar('@', email)[2] = 'ohos.com.cn' or
+       email like '%huawei%'
+                      or
+       email global in (select email
+                               from github_id_email_map
+                               where github_id global in
+                                     (select id
+                                      from github_profile
+                                      where final_company_inferred_from_company = 'huawei'
+                                      group by id)
+
+                               group by email)
+
+union all
+
+
+--google
+select *, toUnixTimestamp(now()) as timestamp, 'google' as company
+from (select email
+      from (select author_email as email
+            from gits
+            group by author_email
+            union all
+            select committer_email as email
+            from gits
+            group by committer_email)
+      group by email)
+where splitByChar('@', email)[2] = 'android.com'
+   or splitByChar('@', email)[2] = 'chrome.com'
+   or splitByChar('@', email)[2] = 'chromium.org'
+   or splitByChar('@', email)[2] = 'google.com'
+   or splitByChar('@', email)[2] = 'tensorflow.org'
+   or email like '%google%'
+   or email global in (select email
+                       from github_id_email_map
+                       where github_id global in
+                             (select id
+                              from github_profile
+                              where final_company_inferred_from_company = 'google'
+                              group by id)
+
+                       group by email)
+
+union all
+
+-- facebook
+select *, toUnixTimestamp(now()) as timestamp, 'meta' as company
+from (select email
+      from (select author_email as email
+            from gits
+            group by author_email
+            union all
+            select committer_email as email
+            from gits
+            group by committer_email)
+      group by email)
+where splitByChar('@', email)[2] = 'fb.com'
+   or splitByChar('@', email)[2] = 'meta.com'
+   or email like '%facebook%'
+   or email global in (select email
+                       from github_id_email_map
+                       where github_id global in
+                             (select id
+                              from github_profile
+                              where final_company_inferred_from_company = 'facebook'
+                              group by id)
+
+                       group by email)
+
+union all
+
+-- intel
+select *, toUnixTimestamp(now()) as timestamp, 'intel' as company
+from (select email
+      from (select author_email as email
+            from gits
+            group by author_email
+            union all
+            select committer_email as email
+            from gits
+            group by committer_email)
+      group by email)
+where
+                  splitByChar('@', email)[2] = 'intel.com' or
+                  email like '%intel%'
+                      or
+                  email global in (select email
+                                          from github_id_email_map
+                                          where github_id global in
+                                                (select id
+                                                 from github_profile
+                                                 where final_company_inferred_from_company = 'intel'
+                                                 group by id)
+
+                                          group by email)
+
+union all
+
+
+
+
+-- redhat
+select *, toUnixTimestamp(now()) as timestamp, 'redhat' as company
+from (select email
+      from (select author_email as email
+            from gits
+            group by author_email
+            union all
+            select committer_email as email
+            from gits
+            group by committer_email)
+      group by email)
+where
+                  splitByChar('@', email)[2] = 'redhat.com' or
+                  email like '%redhat%'
+                      or
+                  email global in (select email
+                                          from github_id_email_map
+                                          where github_id global in
+                                                (select id
+                                                 from github_profile
+                                                 where final_company_inferred_from_company = 'red hat'
+                                                 group by id)
+
+                                          group by email)
+
+union all
+--amd
+select *, toUnixTimestamp(now()) as timestamp, 'amd' as company
+from (select email
+      from (select author_email as email
+            from gits
+            group by author_email
+            union all
+            select committer_email as email
+            from gits
+            group by committer_email)
+      group by email)
+where
+                   splitByChar('@', email)[2] = 'amd.com' or
+                  email global in (select email
+                                          from github_id_email_map
+                                          where github_id global in
+                                                (select id
+                                                 from github_profile
+                                                 where final_company_inferred_from_company = 'amd'
+                                                 group by id)
+
+                                          group by email)
+union all
+--  amazon
+select *, toUnixTimestamp(now()) as timestamp, 'amazon' as company
+from (select email
+      from (select author_email as email
+            from gits
+            group by author_email
+            union all
+            select committer_email as email
+            from gits
+            group by committer_email)
+      group by email)
+where   splitByChar('@', email)[2] = 'amazon.com' or
+                  email like '%amazon%'
+                      or
+                  email global in (select email
+                                          from github_id_email_map
+                                          where github_id!=0 and  github_id global in
+                                                (select id
+                                                 from github_profile
+                                                 where final_company_inferred_from_company = 'amazon'
+                                                 group by id)
+
+                                          group by email))) as b on  a.email = b.email) as b on a.user__id = b.github_id
+group by search_key__owner,search_key__repo,year,company
+order by search_key__owner,search_key__repo,year,pr_comment_count desc
+
+
+
+;
+select if(a.search_key__owner='',b.search_key__owner,a.search_key__owner) as owner,
+       if(a.search_key__owner='',b.search_key__repo,a.search_key__repo) as repo,
+       if(a.search_key__owner='',b.company,a.company) as company,
+       if(a.search_key__owner='',b.year,a.year) as year,
+       pr_count,
+       pr_comment_count
+from (select search_key__owner,
+             search_key__repo,
+             year,
+             company,
+             count() as pr_count
+      from (select search_key__owner, search_key__repo, number, toYear(created_at) as year, b.company
+            from (-- pr 的提出
+                     select *
+                     from github_pull_requests
+                     where ((search_key__owner = 'apache' and search_key__repo = 'activemq')
+                         or (search_key__owner = 'apache' and search_key__repo = 'kyuubi')
+                         or (search_key__owner = 'apache' and search_key__repo = 'bahir')
+                         or (search_key__owner = 'apache' and search_key__repo = 'phoenix')
+                         or (search_key__owner = 'apache' and search_key__repo = 'beam')
+                         or (search_key__owner = 'apache' and search_key__repo = 'ranger')
+                         or (search_key__owner = 'apache' and search_key__repo = 'cassandra')
+                         or (search_key__owner = 'apache' and search_key__repo = 'spark')
+                         or (search_key__owner = 'apache' and search_key__repo = 'flink')
+                         or (search_key__owner = 'apache' and search_key__repo = 'storm')
+                         or (search_key__owner = 'apache' and search_key__repo = 'hadoop')
+                         or (search_key__owner = 'apache' and search_key__repo = 'zookeeper')
+                         or (search_key__owner = 'apache' and search_key__repo = 'hbase')
+                         or (search_key__owner = 'elastic' and search_key__repo = 'elasticsearch')
+                         or (search_key__owner = 'apache' and search_key__repo = 'hive')
+                         or (search_key__owner = 'greenplum-db' and search_key__repo = 'gpdb')
+                         or (search_key__owner = 'apache' and search_key__repo = 'hudi')
+                         or (search_key__owner = 'apache' and search_key__repo = 'impala')
+                         or (search_key__owner = 'apache' and search_key__repo = 'arrow-julia')
+                         or (search_key__owner = 'o3de' and search_key__repo = 'o3de')
+                         or (search_key__owner = 'onnx' and search_key__repo = 'onnx')
+                         or (search_key__owner = 'apache' and search_key__repo = 'tvm')
+                         or (search_key__owner = 'Kitware' and search_key__repo = 'CMake')
+                         or (search_key__owner = 'llvm' and search_key__repo = 'llvm-project')
+                         or (search_key__owner = 'linux-test-project' and search_key__repo = 'ltp')
+                         or (search_key__owner = 'apache' and search_key__repo = 'maven')
+                         or (search_key__owner = 'apache' and search_key__repo = 'calcite')
+                         or (search_key__owner = 'apache' and search_key__repo = 'kudu')
+                         or (search_key__owner = 'MariaDB' and search_key__repo = 'server')
+                         or (search_key__owner = 'mongodb' and search_key__repo = 'mongo')
+                         or (search_key__owner = 'mysql' and search_key__repo = 'mysql-server')
+                         or (search_key__owner = 'redis' and search_key__repo = 'redis')
+                         or (search_key__owner = 'facebook' and search_key__repo = 'rocksdb')
+                         or (search_key__owner = 'php' and search_key__repo = 'php-src')
+                         or (search_key__owner = 'python' and search_key__repo = 'cpython')
+                         or (search_key__owner = 'rust-lang' and search_key__repo = 'rust')
+                         or (search_key__owner = 'ruby' and search_key__repo = 'ruby')
+                         or (search_key__owner = 'kubernetes' and search_key__repo = 'kubernetes')
+                         or (search_key__owner = 'apache' and search_key__repo = 'mesos')
+                         or (search_key__owner = 'apache' and search_key__repo = 'skywalking')
+                         or (search_key__owner = 'libvirt' and search_key__repo = 'libvirt')
+                         or (search_key__owner = 'ceph' and search_key__repo = 'ceph')
+                         or (search_key__owner = 'nats-io' and search_key__repo = 'nats-server')
+                         or (search_key__owner = 'openvswitch' and search_key__repo = 'ovs')
+                         or (search_key__owner = 'containerd' and search_key__repo = 'containerd')
+                         or (search_key__owner = 'coredns' and search_key__repo = 'coredns')
+                         or (search_key__owner = 'operator-framework' and search_key__repo = 'operator-sdk')
+                         or (search_key__owner = 'cri-o' and search_key__repo = 'cri-o')
+                         or (search_key__owner = 'prometheus' and search_key__repo = 'prometheus')
+                         or (search_key__owner = 'etcd-io' and search_key__repo = 'etcd')
+                         or (search_key__owner = 'qemu' and search_key__repo = 'qemu')
+                         or (search_key__owner = 'envoyproxy' and search_key__repo = 'envoy')
+                         or (search_key__owner = 'helm' and search_key__repo = 'helm')
+                         or (search_key__owner = 'hashicorp' and search_key__repo = 'terraform')
+                         or (search_key__owner = 'istio' and search_key__repo = 'istio')
+                         or (search_key__owner = 'vitessio' and search_key__repo = 'vitess')
+                         or (search_key__owner = 'akraino-edge-stack' and search_key__repo = 'icn-nodus')
+                         or (search_key__owner = 'DPDK' and search_key__repo = 'dpdk')
+                         or (search_key__owner = 'numpy' and search_key__repo = 'numpy')
+                         or (search_key__owner = 'cp2k' and search_key__repo = 'cp2k')
+                         or (search_key__owner = 'QEF' and search_key__repo = 'q-e')
+                         or (search_key__owner = 'wrf-model' and search_key__repo = 'WRF')
+                         or (search_key__owner = 'EddyRivasLab' and search_key__repo = 'hmmer')
+                         or (search_key__owner = 'lammps' and search_key__repo = 'lammps')
+                         or (search_key__owner = 'apache' and search_key__repo = 'camel')
+                         or (search_key__owner = 'grpc' and search_key__repo = 'grpc')
+                         or (search_key__owner = 'apache' and search_key__repo = 'thrift')
+                         or (search_key__owner = 'apache' and search_key__repo = 'httpd')
+                         or (search_key__owner = 'apache' and search_key__repo = 'tomcat')
+                         or (search_key__owner = 'haproxy' and search_key__repo = 'haproxy')
+                         or (search_key__owner = 'apache' and search_key__repo = 'groovy')
+                         or (search_key__owner = 'kubeflow' and search_key__repo = 'kubeflow')
+                         or (search_key__owner = 'eclipse-ee4j' and search_key__repo = 'glassfish')
+                         or (search_key__owner = 'apache' and search_key__repo = 'kafka')
+                         or (search_key__owner = 'memcached' and search_key__repo = 'memcached')
+                         or (search_key__owner = 'squid-cache' and search_key__repo = 'squid')
+                         or (search_key__owner = 'apache' and search_key__repo = 'karaf')
+                         or (search_key__owner = 'netty' and search_key__repo = 'netty')
+                         or (search_key__owner = 'varnishcache' and search_key__repo = 'varnish-cache')
+                         or (search_key__owner = 'apache' and search_key__repo = 'struts')
+                         or (search_key__owner = 'nginx' and search_key__repo = 'nginx')
+                         or (search_key__owner = 'apache' and search_key__repo = 'zeppelin')
+                         or (search_key__owner = 'openeuler-mirror' and search_key__repo = 'A-Tune')
+                         or (search_key__owner = 'gcc-mirror' and search_key__repo = 'gcc')
+                         or (search_key__owner = 'bminor' and search_key__repo = 'glibc')
+                         or (search_key__owner = 'coreos' and search_key__repo = 'grub')
+                         or (search_key__owner = 'intel' and search_key__repo = 'hyperscan')
+                         or (search_key__owner = 'intel' and search_key__repo = 'isa-l')
+                         or (search_key__owner = 'torvalds' and search_key__repo = 'linux')
+                         or (search_key__owner = 'bminor' and search_key__repo = 'musl')
+                         or (search_key__owner = 'opencv' and search_key__repo = 'opencv')
+                         or (search_key__owner = 'openssl' and search_key__repo = 'openssl')
+                         or (search_key__owner = 'openzfs' and search_key__repo = 'zfs')
+                         or (search_key__owner = 'google' and search_key__repo = 'snappy')
+                         or (search_key__owner = 'videolan' and search_key__repo = 'x265')
+                         or (search_key__owner = 'madler' and search_key__repo = 'zlib')
+                         or (search_key__owner = 'facebook' and search_key__repo = 'zstd')
+                         or (search_key__owner = 'persona-id' and search_key__repo = 'persona-ios-sdk')
+                         or (search_key__owner = 'persona-id' and search_key__repo = 'persona-android-sdk')
+                         or (search_key__owner = 'WebAssembly' and search_key__repo = 'WASI')
+                         or (search_key__owner = 'WebAssembly' and search_key__repo = 'gc')
+                         or (search_key__owner = 'adoptium' and search_key__repo = 'temurin-build')
+                         or (search_key__owner = 'adoptium' and search_key__repo = 'aqa-tests')
+                         or (search_key__owner = 'adoptium' and search_key__repo = 'installer')
+                         or (search_key__owner = 'adoptium' and search_key__repo = 'containers')
+                         or (search_key__owner = 'openjdk' and search_key__repo = 'jdk')
+                         or (search_key__owner = 'codenotary' and search_key__repo = 'kube-notary')
+                         or (search_key__owner = 'codenotary' and search_key__repo = 'merkletree')
+                         or (search_key__owner = 'codenotary' and search_key__repo = 'immuproof')
+                         or (search_key__owner = 'codenotary' and search_key__repo = 'immudb')
+                         or (search_key__owner = 'codenotary' and search_key__repo = 'cas')
+                         or (search_key__owner = 'oVirt' and search_key__repo = 'ovirt-engine')
+                         or (search_key__owner = 'onap' and search_key__repo = 'sdc')
+                         or (search_key__owner = 'onap' and search_key__repo = 'multicloud-k8s')
+                         or (search_key__owner = 'onap' and search_key__repo = 'oom')
+                         or (search_key__owner = 'onap' and search_key__repo = 'ccsdk-cds')
+                         or (search_key__owner = 'onap' and search_key__repo = 'so'))) as a global
+                     join (select a.github_id, a.email, b.company
+                           from github_id_email_map as a global
+                                    join (
+                               (
+-- huawei
+                                   select *, toUnixTimestamp(now()) as timestamp, 'huawei' as company
+                                   from (select email
+                                         from (select author_email as email
+                                               from gits
+                                               group by author_email
+                                               union all
+                                               select committer_email as email
+                                               from gits
+                                               group by committer_email)
+                                         group by email)
+                                   where splitByChar('@', email)[2] = 'huawei.com'
+                                      or splitByChar('@', email)[2] = 'hisilicon.com'
+                                      or splitByChar('@', email)[2] = 'huawei.partners.com'
+                                      or splitByChar('@', email)[2] = 'china.huawei.com'
+                                      or splitByChar('@', email)[2] = 'notesmail.huawei.com'
+                                      or splitByChar('@', email)[2] = 'ohos.com.cn'
+                                      or email like '%huawei%'
+                                      or email global in (select email
+                                                          from github_id_email_map
+                                                          where github_id global in
+                                                                (select id
+                                                                 from github_profile
+                                                                 where final_company_inferred_from_company = 'huawei'
+                                                                 group by id)
+
+                                                          group by email)
+
+                                   union all
+
+
+--google
+                                   select *, toUnixTimestamp(now()) as timestamp, 'google' as company
+                                   from (select email
+                                         from (select author_email as email
+                                               from gits
+                                               group by author_email
+                                               union all
+                                               select committer_email as email
+                                               from gits
+                                               group by committer_email)
+                                         group by email)
+                                   where splitByChar('@', email)[2] = 'android.com'
+                                      or splitByChar('@', email)[2] = 'chrome.com'
+                                      or splitByChar('@', email)[2] = 'chromium.org'
+                                      or splitByChar('@', email)[2] = 'google.com'
+                                      or splitByChar('@', email)[2] = 'tensorflow.org'
+                                      or email like '%google%'
+                                      or email global in (select email
+                                                          from github_id_email_map
+                                                          where github_id global in
+                                                                (select id
+                                                                 from github_profile
+                                                                 where final_company_inferred_from_company = 'google'
+                                                                 group by id)
+
+                                                          group by email)
+
+                                   union all
+
+-- facebook
+                                   select *, toUnixTimestamp(now()) as timestamp, 'meta' as company
+                                   from (select email
+                                         from (select author_email as email
+                                               from gits
+                                               group by author_email
+                                               union all
+                                               select committer_email as email
+                                               from gits
+                                               group by committer_email)
+                                         group by email)
+                                   where splitByChar('@', email)[2] = 'fb.com'
+                                      or splitByChar('@', email)[2] = 'meta.com'
+                                      or email like '%facebook%'
+                                      or email global in (select email
+                                                          from github_id_email_map
+                                                          where github_id global in
+                                                                (select id
+                                                                 from github_profile
+                                                                 where final_company_inferred_from_company = 'facebook'
+                                                                 group by id)
+
+                                                          group by email)
+
+                                   union all
+
+-- intel
+                                   select *, toUnixTimestamp(now()) as timestamp, 'intel' as company
+                                   from (select email
+                                         from (select author_email as email
+                                               from gits
+                                               group by author_email
+                                               union all
+                                               select committer_email as email
+                                               from gits
+                                               group by committer_email)
+                                         group by email)
+                                   where splitByChar('@', email)[2] = 'intel.com'
+                                      or email like '%intel%'
+                                      or email global in (select email
+                                                          from github_id_email_map
+                                                          where github_id global in
+                                                                (select id
+                                                                 from github_profile
+                                                                 where final_company_inferred_from_company = 'intel'
+                                                                 group by id)
+
+                                                          group by email)
+
+                                   union all
+
+
+-- redhat
+                                   select *, toUnixTimestamp(now()) as timestamp, 'redhat' as company
+                                   from (select email
+                                         from (select author_email as email
+                                               from gits
+                                               group by author_email
+                                               union all
+                                               select committer_email as email
+                                               from gits
+                                               group by committer_email)
+                                         group by email)
+                                   where splitByChar('@', email)[2] = 'redhat.com'
+                                      or email like '%redhat%'
+                                      or email global in (select email
+                                                          from github_id_email_map
+                                                          where github_id global in
+                                                                (select id
+                                                                 from github_profile
+                                                                 where final_company_inferred_from_company = 'red hat'
+                                                                 group by id)
+
+                                                          group by email)
+
+                                   union all
+--amd
+                                   select *, toUnixTimestamp(now()) as timestamp, 'amd' as company
+                                   from (select email
+                                         from (select author_email as email
+                                               from gits
+                                               group by author_email
+                                               union all
+                                               select committer_email as email
+                                               from gits
+                                               group by committer_email)
+                                         group by email)
+                                   where splitByChar('@', email)[2] = 'amd.com'
+                                      or email global in (select email
+                                                          from github_id_email_map
+                                                          where github_id global in
+                                                                (select id
+                                                                 from github_profile
+                                                                 where final_company_inferred_from_company = 'amd'
+                                                                 group by id)
+
+                                                          group by email)
+                                   union all
+--  amazon
+                                   select *, toUnixTimestamp(now()) as timestamp, 'amazon' as company
+                                   from (select email
+                                         from (select author_email as email
+                                               from gits
+                                               group by author_email
+                                               union all
+                                               select committer_email as email
+                                               from gits
+                                               group by committer_email)
+                                         group by email)
+                                   where splitByChar('@', email)[2] = 'amazon.com'
+                                      or email like '%amazon%'
+                                      or email global in (select email
+                                                          from github_id_email_map
+                                                          where github_id != 0
+                                                            and github_id global in
+                                                                (select id
+                                                                 from github_profile
+                                                                 where final_company_inferred_from_company = 'amazon'
+                                                                 group by id)
+
+                                                          group by email))) as b on a.email = b.email) as b
+                          on a.user__id = b.github_id)
+      group by search_key__owner, search_key__repo, year, company
+      order by search_key__owner, search_key__repo, year, pr_count desc) as a global
+         full join (select search_key__owner,
+                           search_key__repo,
+                           year,
+                           company,
+                           count() as pr_comment_count
+                    from (select search_key__owner, search_key__repo, number, user__id, toYear(created_at) as year
+                          from github_issues_comments global
+                                   join (select search_key__owner, search_key__repo, number
+                                         from github_pull_requests
+                                         where (search_key__owner = 'apache' and search_key__repo = 'activemq')
+                                            or (search_key__owner = 'apache' and search_key__repo = 'kyuubi')
+                                            or (search_key__owner = 'apache' and search_key__repo = 'bahir')
+                                            or (search_key__owner = 'apache' and search_key__repo = 'phoenix')
+                                            or (search_key__owner = 'apache' and search_key__repo = 'beam')
+                                            or (search_key__owner = 'apache' and search_key__repo = 'ranger')
+                                            or (search_key__owner = 'apache' and search_key__repo = 'cassandra')
+                                            or (search_key__owner = 'apache' and search_key__repo = 'spark')
+                                            or (search_key__owner = 'apache' and search_key__repo = 'flink')
+                                            or (search_key__owner = 'apache' and search_key__repo = 'storm')
+                                            or (search_key__owner = 'apache' and search_key__repo = 'hadoop')
+                                            or (search_key__owner = 'apache' and search_key__repo = 'zookeeper')
+                                            or (search_key__owner = 'apache' and search_key__repo = 'hbase')
+                                            or (search_key__owner = 'elastic' and search_key__repo = 'elasticsearch')
+                                            or (search_key__owner = 'apache' and search_key__repo = 'hive')
+                                            or (search_key__owner = 'greenplum-db' and search_key__repo = 'gpdb')
+                                            or (search_key__owner = 'apache' and search_key__repo = 'hudi')
+                                            or (search_key__owner = 'apache' and search_key__repo = 'impala')
+                                            or (search_key__owner = 'apache' and search_key__repo = 'arrow-julia')
+                                            or (search_key__owner = 'o3de' and search_key__repo = 'o3de')
+                                            or (search_key__owner = 'onnx' and search_key__repo = 'onnx')
+                                            or (search_key__owner = 'apache' and search_key__repo = 'tvm')
+                                            or (search_key__owner = 'Kitware' and search_key__repo = 'CMake')
+                                            or (search_key__owner = 'llvm' and search_key__repo = 'llvm-project')
+                                            or (search_key__owner = 'linux-test-project' and search_key__repo = 'ltp')
+                                            or (search_key__owner = 'apache' and search_key__repo = 'maven')
+                                            or (search_key__owner = 'apache' and search_key__repo = 'calcite')
+                                            or (search_key__owner = 'apache' and search_key__repo = 'kudu')
+                                            or (search_key__owner = 'MariaDB' and search_key__repo = 'server')
+                                            or (search_key__owner = 'mongodb' and search_key__repo = 'mongo')
+                                            or (search_key__owner = 'mysql' and search_key__repo = 'mysql-server')
+                                            or (search_key__owner = 'redis' and search_key__repo = 'redis')
+                                            or (search_key__owner = 'facebook' and search_key__repo = 'rocksdb')
+                                            or (search_key__owner = 'php' and search_key__repo = 'php-src')
+                                            or (search_key__owner = 'python' and search_key__repo = 'cpython')
+                                            or (search_key__owner = 'rust-lang' and search_key__repo = 'rust')
+                                            or (search_key__owner = 'ruby' and search_key__repo = 'ruby')
+                                            or (search_key__owner = 'kubernetes' and search_key__repo = 'kubernetes')
+                                            or (search_key__owner = 'apache' and search_key__repo = 'mesos')
+                                            or (search_key__owner = 'apache' and search_key__repo = 'skywalking')
+                                            or (search_key__owner = 'libvirt' and search_key__repo = 'libvirt')
+                                            or (search_key__owner = 'ceph' and search_key__repo = 'ceph')
+                                            or (search_key__owner = 'nats-io' and search_key__repo = 'nats-server')
+                                            or (search_key__owner = 'openvswitch' and search_key__repo = 'ovs')
+                                            or (search_key__owner = 'containerd' and search_key__repo = 'containerd')
+                                            or (search_key__owner = 'coredns' and search_key__repo = 'coredns')
+                                            or (search_key__owner = 'operator-framework' and
+                                                search_key__repo = 'operator-sdk')
+                                            or (search_key__owner = 'cri-o' and search_key__repo = 'cri-o')
+                                            or (search_key__owner = 'prometheus' and search_key__repo = 'prometheus')
+                                            or (search_key__owner = 'etcd-io' and search_key__repo = 'etcd')
+                                            or (search_key__owner = 'qemu' and search_key__repo = 'qemu')
+                                            or (search_key__owner = 'envoyproxy' and search_key__repo = 'envoy')
+                                            or (search_key__owner = 'helm' and search_key__repo = 'helm')
+                                            or (search_key__owner = 'hashicorp' and search_key__repo = 'terraform')
+                                            or (search_key__owner = 'istio' and search_key__repo = 'istio')
+                                            or (search_key__owner = 'vitessio' and search_key__repo = 'vitess')
+                                            or (search_key__owner = 'akraino-edge-stack' and search_key__repo = 'icn-nodus')
+                                            or (search_key__owner = 'DPDK' and search_key__repo = 'dpdk')
+                                            or (search_key__owner = 'numpy' and search_key__repo = 'numpy')
+                                            or (search_key__owner = 'cp2k' and search_key__repo = 'cp2k')
+                                            or (search_key__owner = 'QEF' and search_key__repo = 'q-e')
+                                            or (search_key__owner = 'wrf-model' and search_key__repo = 'WRF')
+                                            or (search_key__owner = 'EddyRivasLab' and search_key__repo = 'hmmer')
+                                            or (search_key__owner = 'lammps' and search_key__repo = 'lammps')
+                                            or (search_key__owner = 'apache' and search_key__repo = 'camel')
+                                            or (search_key__owner = 'grpc' and search_key__repo = 'grpc')
+                                            or (search_key__owner = 'apache' and search_key__repo = 'thrift')
+                                            or (search_key__owner = 'apache' and search_key__repo = 'httpd')
+                                            or (search_key__owner = 'apache' and search_key__repo = 'tomcat')
+                                            or (search_key__owner = 'haproxy' and search_key__repo = 'haproxy')
+                                            or (search_key__owner = 'apache' and search_key__repo = 'groovy')
+                                            or (search_key__owner = 'kubeflow' and search_key__repo = 'kubeflow')
+                                            or (search_key__owner = 'eclipse-ee4j' and search_key__repo = 'glassfish')
+                                            or (search_key__owner = 'apache' and search_key__repo = 'kafka')
+                                            or (search_key__owner = 'memcached' and search_key__repo = 'memcached')
+                                            or (search_key__owner = 'squid-cache' and search_key__repo = 'squid')
+                                            or (search_key__owner = 'apache' and search_key__repo = 'karaf')
+                                            or (search_key__owner = 'netty' and search_key__repo = 'netty')
+                                            or (search_key__owner = 'varnishcache' and search_key__repo = 'varnish-cache')
+                                            or (search_key__owner = 'apache' and search_key__repo = 'struts')
+                                            or (search_key__owner = 'nginx' and search_key__repo = 'nginx')
+                                            or (search_key__owner = 'apache' and search_key__repo = 'zeppelin')
+                                            or (search_key__owner = 'openeuler-mirror' and search_key__repo = 'A-Tune')
+                                            or (search_key__owner = 'gcc-mirror' and search_key__repo = 'gcc')
+                                            or (search_key__owner = 'bminor' and search_key__repo = 'glibc')
+                                            or (search_key__owner = 'coreos' and search_key__repo = 'grub')
+                                            or (search_key__owner = 'intel' and search_key__repo = 'hyperscan')
+                                            or (search_key__owner = 'intel' and search_key__repo = 'isa-l')
+                                            or (search_key__owner = 'torvalds' and search_key__repo = 'linux')
+                                            or (search_key__owner = 'bminor' and search_key__repo = 'musl')
+                                            or (search_key__owner = 'opencv' and search_key__repo = 'opencv')
+                                            or (search_key__owner = 'openssl' and search_key__repo = 'openssl')
+                                            or (search_key__owner = 'openzfs' and search_key__repo = 'zfs')
+                                            or (search_key__owner = 'google' and search_key__repo = 'snappy')
+                                            or (search_key__owner = 'videolan' and search_key__repo = 'x265')
+                                            or (search_key__owner = 'madler' and search_key__repo = 'zlib')
+                                            or (search_key__owner = 'facebook' and search_key__repo = 'zstd')
+                                            or (search_key__owner = 'persona-id' and search_key__repo = 'persona-ios-sdk')
+                                            or (search_key__owner = 'persona-id' and
+                                                search_key__repo = 'persona-android-sdk')
+                                            or (search_key__owner = 'WebAssembly' and search_key__repo = 'WASI')
+                                            or (search_key__owner = 'WebAssembly' and search_key__repo = 'gc')
+                                            or (search_key__owner = 'adoptium' and search_key__repo = 'temurin-build')
+                                            or (search_key__owner = 'adoptium' and search_key__repo = 'aqa-tests')
+                                            or (search_key__owner = 'adoptium' and search_key__repo = 'installer')
+                                            or (search_key__owner = 'adoptium' and search_key__repo = 'containers')
+                                            or (search_key__owner = 'openjdk' and search_key__repo = 'jdk')
+                                            or (search_key__owner = 'codenotary' and search_key__repo = 'kube-notary')
+                                            or (search_key__owner = 'codenotary' and search_key__repo = 'merkletree')
+                                            or (search_key__owner = 'codenotary' and search_key__repo = 'immuproof')
+                                            or (search_key__owner = 'codenotary' and search_key__repo = 'immudb')
+                                            or (search_key__owner = 'codenotary' and search_key__repo = 'cas')
+                                            or (search_key__owner = 'oVirt' and search_key__repo = 'ovirt-engine')
+                                            or (search_key__owner = 'onap' and search_key__repo = 'sdc')
+                                            or (search_key__owner = 'onap' and search_key__repo = 'multicloud-k8s')
+                                            or (search_key__owner = 'onap' and search_key__repo = 'oom')
+                                            or (search_key__owner = 'onap' and search_key__repo = 'ccsdk-cds')
+                                            or (search_key__owner = 'onap' and search_key__repo = 'so')
+                                         group by search_key__owner, search_key__repo, number) as b
+                                        on github_issues_comments.search_key__owner = b.search_key__owner and
+                                           github_issues_comments.search_key__repo = b.search_key__repo
+                                            and github_issues_comments.search_key__number = b.number) as a
+                             global
+                             join (select a.github_id, a.email, b.company
+                                   from github_id_email_map as a global
+                                            join (
+                                       (
+-- huawei
+                                           select *, toUnixTimestamp(now()) as timestamp, 'huawei' as company
+                                           from (select email
+                                                 from (select author_email as email
+                                                       from gits
+                                                       group by author_email
+                                                       union all
+                                                       select committer_email as email
+                                                       from gits
+                                                       group by committer_email)
+                                                 group by email)
+                                           where splitByChar('@', email)[2] = 'huawei.com'
+                                              or splitByChar('@', email)[2] = 'hisilicon.com'
+                                              or splitByChar('@', email)[2] = 'huawei.partners.com'
+                                              or splitByChar('@', email)[2] = 'china.huawei.com'
+                                              or splitByChar('@', email)[2] = 'notesmail.huawei.com'
+                                              or splitByChar('@', email)[2] = 'ohos.com.cn'
+                                              or email like '%huawei%'
+                                              or email global in (select email
+                                                                  from github_id_email_map
+                                                                  where github_id global in
+                                                                        (select id
+                                                                         from github_profile
+                                                                         where final_company_inferred_from_company = 'huawei'
+                                                                         group by id)
+
+                                                                  group by email)
+
+                                           union all
+
+
+--google
+                                           select *, toUnixTimestamp(now()) as timestamp, 'google' as company
+                                           from (select email
+                                                 from (select author_email as email
+                                                       from gits
+                                                       group by author_email
+                                                       union all
+                                                       select committer_email as email
+                                                       from gits
+                                                       group by committer_email)
+                                                 group by email)
+                                           where splitByChar('@', email)[2] = 'android.com'
+                                              or splitByChar('@', email)[2] = 'chrome.com'
+                                              or splitByChar('@', email)[2] = 'chromium.org'
+                                              or splitByChar('@', email)[2] = 'google.com'
+                                              or splitByChar('@', email)[2] = 'tensorflow.org'
+                                              or email like '%google%'
+                                              or email global in (select email
+                                                                  from github_id_email_map
+                                                                  where github_id global in
+                                                                        (select id
+                                                                         from github_profile
+                                                                         where final_company_inferred_from_company = 'google'
+                                                                         group by id)
+
+                                                                  group by email)
+
+                                           union all
+
+-- facebook
+                                           select *, toUnixTimestamp(now()) as timestamp, 'meta' as company
+                                           from (select email
+                                                 from (select author_email as email
+                                                       from gits
+                                                       group by author_email
+                                                       union all
+                                                       select committer_email as email
+                                                       from gits
+                                                       group by committer_email)
+                                                 group by email)
+                                           where splitByChar('@', email)[2] = 'fb.com'
+                                              or splitByChar('@', email)[2] = 'meta.com'
+                                              or email like '%facebook%'
+                                              or email global in (select email
+                                                                  from github_id_email_map
+                                                                  where github_id global in
+                                                                        (select id
+                                                                         from github_profile
+                                                                         where final_company_inferred_from_company = 'facebook'
+                                                                         group by id)
+
+                                                                  group by email)
+
+                                           union all
+
+-- intel
+                                           select *, toUnixTimestamp(now()) as timestamp, 'intel' as company
+                                           from (select email
+                                                 from (select author_email as email
+                                                       from gits
+                                                       group by author_email
+                                                       union all
+                                                       select committer_email as email
+                                                       from gits
+                                                       group by committer_email)
+                                                 group by email)
+                                           where splitByChar('@', email)[2] = 'intel.com'
+                                              or email like '%intel%'
+                                              or email global in (select email
+                                                                  from github_id_email_map
+                                                                  where github_id global in
+                                                                        (select id
+                                                                         from github_profile
+                                                                         where final_company_inferred_from_company = 'intel'
+                                                                         group by id)
+
+                                                                  group by email)
+
+                                           union all
+
+
+-- redhat
+                                           select *, toUnixTimestamp(now()) as timestamp, 'redhat' as company
+                                           from (select email
+                                                 from (select author_email as email
+                                                       from gits
+                                                       group by author_email
+                                                       union all
+                                                       select committer_email as email
+                                                       from gits
+                                                       group by committer_email)
+                                                 group by email)
+                                           where splitByChar('@', email)[2] = 'redhat.com'
+                                              or email like '%redhat%'
+                                              or email global in (select email
+                                                                  from github_id_email_map
+                                                                  where github_id global in
+                                                                        (select id
+                                                                         from github_profile
+                                                                         where final_company_inferred_from_company = 'red hat'
+                                                                         group by id)
+
+                                                                  group by email)
+
+                                           union all
+--amd
+                                           select *, toUnixTimestamp(now()) as timestamp, 'amd' as company
+                                           from (select email
+                                                 from (select author_email as email
+                                                       from gits
+                                                       group by author_email
+                                                       union all
+                                                       select committer_email as email
+                                                       from gits
+                                                       group by committer_email)
+                                                 group by email)
+                                           where splitByChar('@', email)[2] = 'amd.com'
+                                              or email global in (select email
+                                                                  from github_id_email_map
+                                                                  where github_id global in
+                                                                        (select id
+                                                                         from github_profile
+                                                                         where final_company_inferred_from_company = 'amd'
+                                                                         group by id)
+
+                                                                  group by email)
+                                           union all
+--  amazon
+                                           select *, toUnixTimestamp(now()) as timestamp, 'amazon' as company
+                                           from (select email
+                                                 from (select author_email as email
+                                                       from gits
+                                                       group by author_email
+                                                       union all
+                                                       select committer_email as email
+                                                       from gits
+                                                       group by committer_email)
+                                                 group by email)
+                                           where splitByChar('@', email)[2] = 'amazon.com'
+                                              or email like '%amazon%'
+                                              or email global in (select email
+                                                                  from github_id_email_map
+                                                                  where github_id != 0
+                                                                    and github_id global in
+                                                                        (select id
+                                                                         from github_profile
+                                                                         where final_company_inferred_from_company = 'amazon'
+                                                                         group by id)
+
+                                                                  group by email))) as b on a.email = b.email) as b
+                                  on a.user__id = b.github_id
+                    group by search_key__owner, search_key__repo, year, company
+                    order by search_key__owner, search_key__repo, year, pr_comment_count desc) as b
+                   on a.search_key__owner = b.search_key__owner
+                       and a.search_key__repo = b.search_key__repo
+                        and a.company = b.company and a.year = b.year
+order by owner,repo,year,company
+
+
+
+
+
+
+
+
+
+
+
+
+--linux maintainer 公司
+select final_company_inferred_from_company, name,email
+from (select author__id, commit__author__email, final_company_inferred_from_company
+      from (select author__id, commit__author__email
+            from (select *
+                  from (select author__id, commit__author__email
+                        from (select author__id, commit__author__email
+                              from github_commits
+                              group by author__id, commit__author__email
+                              union all
+                              select committer__id, commit__committer__email
+                              from github_commits
+                              group by committer__id, commit__committer__email)
+                        group by author__id, commit__author__email)
+                  where author__id != 0) as a global
+                     join (select name, email from linux_maintainer group by name, email) as b
+                          on a.commit__author__email = b.email) a global
+               join github_profile as b
+                    on a.author__id = b.id
+      where final_company_inferred_from_company != '') as a global
+         join (select name, email from linux_maintainer group by name, email) as b on a.commit__author__email = b.email
+         
+         
+         
+         
+         
+         
+         
+         
+         
+         
+         
+         
+         
+         
+         
+         
+         
+         
+         
+---linux kernel maintainer 按照email domain 和profile 推测maintainer 公司       
+         
+         
+         
+         
+select module,name,email,company,final_company_inferred_from_company,1 as infered_from_email_domain_and_profile from
+                                                                         (
+                                                                             select module_ as module, name_ as name, email_ as email,'huawei' as company
+from (select argMax(module, update_at_timestamp) as module_,
+             argMax(name, update_at_timestamp)   as name_,
+             argMax(email, update_at_timestamp)  as email_
+      from linux_maintainer
+      group by module, name, email)
+where splitByChar('@', email)[2] = 'huawei.com'
+                                              or splitByChar('@', email)[2] = 'hisilicon.com'
+                                              or splitByChar('@', email)[2] = 'huawei.partners.com'
+                                              or splitByChar('@', email)[2] = 'china.huawei.com'
+                                              or splitByChar('@', email)[2] = 'notesmail.huawei.com'
+                                              or splitByChar('@', email)[2] = 'ohos.com.cn'
+                                              or email like '%huawei%'
+
+union all
+
+select module_ as module, name_ as name, email_ as email,'google' as company
+from (select argMax(module, update_at_timestamp) as module_,
+             argMax(name, update_at_timestamp)   as name_,
+             argMax(email, update_at_timestamp)  as email_
+      from linux_maintainer
+      group by module, name, email)
+where splitByChar('@', email)[2] = 'android.com'
+                                              or splitByChar('@', email)[2] = 'chrome.com'
+                                              or splitByChar('@', email)[2] = 'chromium.org'
+                                              or splitByChar('@', email)[2] = 'google.com'
+                                              or splitByChar('@', email)[2] = 'tensorflow.org'
+                                              or email like '%google%'
+
+
+union all
+
+select module_ as module, name_ as name, email_ as email,'meta' as company
+from (select argMax(module, update_at_timestamp) as module_,
+             argMax(name, update_at_timestamp)   as name_,
+             argMax(email, update_at_timestamp)  as email_
+      from linux_maintainer
+      group by module, name, email)
+ where splitByChar('@', email)[2] = 'fb.com'
+                                              or splitByChar('@', email)[2] = 'meta.com'
+                                              or email like '%facebook%'
+
+union all
+
+select module_ as module, name_ as name, email_ as email,'intel' as company
+from (select argMax(module, update_at_timestamp) as module_,
+             argMax(name, update_at_timestamp)   as name_,
+             argMax(email, update_at_timestamp)  as email_
+      from linux_maintainer
+      group by module, name, email)
+where splitByChar('@', email)[2] = 'intel.com'
+                                              or email like '%intel%'
+
+union all
+
+select module_ as module, name_ as name, email_ as email,'redhat' as company
+from (select argMax(module, update_at_timestamp) as module_,
+             argMax(name, update_at_timestamp)   as name_,
+             argMax(email, update_at_timestamp)  as email_
+      from linux_maintainer
+      group by module, name, email)
+   where splitByChar('@', email)[2] = 'redhat.com'
+                                              or email like '%redhat%'
+
+
+union all
+
+select module_ as module, name_ as name, email_ as email,'amd' as company
+from (select argMax(module, update_at_timestamp) as module_,
+             argMax(name, update_at_timestamp)   as name_,
+             argMax(email, update_at_timestamp)  as email_
+      from linux_maintainer
+      group by module, name, email)
+                                           where splitByChar('@', email)[2] = 'amd.com'
+
+union all
+
+select module_ as module, name_ as name, email_ as email,'amazon' as company
+from (select argMax(module, update_at_timestamp) as module_,
+             argMax(name, update_at_timestamp)   as name_,
+             argMax(email, update_at_timestamp)  as email_
+      from linux_maintainer
+      group by module, name, email)
+                                           where splitByChar('@', email)[2] = 'amazon.com'
+                                              or email like '%amazon%'
+
+
+union all
+
+select module_ as module, name_ as name, email_ as email,'pengutronix' as company
+from (select argMax(module, update_at_timestamp) as module_,
+             argMax(name, update_at_timestamp)   as name_,
+             argMax(email, update_at_timestamp)  as email_
+      from linux_maintainer
+      group by module, name, email)
+                                           where splitByChar('@', email)[2] = 'pengutronix.de'
+                                              or email like '%pengutronix%'
+
+
+union all
+
+select module_ as module, name_ as name, email_ as email,'alibaba' as company
+from (select argMax(module, update_at_timestamp) as module_,
+             argMax(name, update_at_timestamp)   as name_,
+             argMax(email, update_at_timestamp)  as email_
+      from linux_maintainer
+      group by module, name, email)
+                                           where
+                                               email like '%alibaba%'
+
+
+union all
+
+select module_ as module, name_ as name, email_ as email,'arm' as company
+from (select argMax(module, update_at_timestamp) as module_,
+             argMax(name, update_at_timestamp)   as name_,
+             argMax(email, update_at_timestamp)  as email_
+      from linux_maintainer
+      group by module, name, email)
+                                           where splitByChar('@', email)[2] = 'arm.com'
+
+
+union all
+
+select module_ as module, name_ as name, email_ as email,'baylibre' as company
+from (select argMax(module, update_at_timestamp) as module_,
+             argMax(name, update_at_timestamp)   as name_,
+             argMax(email, update_at_timestamp)  as email_
+      from linux_maintainer
+      group by module, name, email)
+                                           where splitByChar('@', email)[2] = 'baylibre.com'
+                                              or email like '%baylibre%'
+
+union all
+
+select module_ as module, name_ as name, email_ as email,'canonical' as company
+from (select argMax(module, update_at_timestamp) as module_,
+             argMax(name, update_at_timestamp)   as name_,
+             argMax(email, update_at_timestamp)  as email_
+      from linux_maintainer
+      group by module, name, email)
+                                           where splitByChar('@', email)[2] = 'canonical.com'
+                                              or email like '%canonical%'
+
+union all
+
+select module_ as module, name_ as name, email_ as email,'collabora' as company
+from (select argMax(module, update_at_timestamp) as module_,
+             argMax(name, update_at_timestamp)   as name_,
+             argMax(email, update_at_timestamp)  as email_
+      from linux_maintainer
+      group by module, name, email)
+                                           where splitByChar('@', email)[2] = 'collabora.com'
+                                              or email like '%collabora%'
+
+union all
+
+select module_ as module, name_ as name, email_ as email,'hpe' as company
+from (select argMax(module, update_at_timestamp) as module_,
+             argMax(name, update_at_timestamp)   as name_,
+             argMax(email, update_at_timestamp)  as email_
+      from linux_maintainer
+      group by module, name, email)
+                                           where splitByChar('@', email)[2] = 'hpe.com'
+
+union all
+
+select module_ as module, name_ as name, email_ as email,'ibm' as company
+from (select argMax(module, update_at_timestamp) as module_,
+             argMax(name, update_at_timestamp)   as name_,
+             argMax(email, update_at_timestamp)  as email_
+      from linux_maintainer
+      group by module, name, email)
+                                           where endsWith(splitByChar('@', email)[2],'ibm.com')
+
+union all
+
+select module_ as module, name_ as name, email_ as email,'linaro' as company
+from (select argMax(module, update_at_timestamp) as module_,
+             argMax(name, update_at_timestamp)   as name_,
+             argMax(email, update_at_timestamp)  as email_
+      from linux_maintainer
+      group by module, name, email)
+                                           where splitByChar('@', email)[2] = 'linaro.org'
+                                              or email like '%linaro%'
+
+union all
+
+select module_ as module, name_ as name, email_ as email,'mediatek' as company
+from (select argMax(module, update_at_timestamp) as module_,
+             argMax(name, update_at_timestamp)   as name_,
+             argMax(email, update_at_timestamp)  as email_
+      from linux_maintainer
+      group by module, name, email)
+                                           where splitByChar('@', email)[2] = 'mediatek.com'
+                                              or email like '%mediatek%'
+
+union all
+
+select module_ as module, name_ as name, email_ as email,'marvell' as company
+from (select argMax(module, update_at_timestamp) as module_,
+             argMax(name, update_at_timestamp)   as name_,
+             argMax(email, update_at_timestamp)  as email_
+      from linux_maintainer
+      group by module, name, email)
+                                           where splitByChar('@', email)[2] = 'marvell.com'
+                                              or email like '%marvell%'
+
+union all
+
+select module_ as module, name_ as name, email_ as email,'microsoft' as company
+from (select argMax(module, update_at_timestamp) as module_,
+             argMax(name, update_at_timestamp)   as name_,
+             argMax(email, update_at_timestamp)  as email_
+      from linux_maintainer
+      group by module, name, email)
+                                           where splitByChar('@', email)[2] = 'microsoft.com'
+                                              or email like '%microsoft%'
+
+union all
+
+select module_ as module, name_ as name, email_ as email,'nvidia' as company
+from (select argMax(module, update_at_timestamp) as module_,
+             argMax(name, update_at_timestamp)   as name_,
+             argMax(email, update_at_timestamp)  as email_
+      from linux_maintainer
+      group by module, name, email)
+                                           where splitByChar('@', email)[2] = 'nvidia.com'
+                                              or email like '%nvidia%'
+
+union all
+
+select module_ as module, name_ as name, email_ as email,'nxp' as company
+from (select argMax(module, update_at_timestamp) as module_,
+             argMax(name, update_at_timestamp)   as name_,
+             argMax(email, update_at_timestamp)  as email_
+      from linux_maintainer
+      group by module, name, email)
+                                           where splitByChar('@', email)[2] = 'nxp.com'
+
+
+union all
+
+select module_ as module, name_ as name, email_ as email,'oracle' as company
+from (select argMax(module, update_at_timestamp) as module_,
+             argMax(name, update_at_timestamp)   as name_,
+             argMax(email, update_at_timestamp)  as email_
+      from linux_maintainer
+      group by module, name, email)
+                                           where splitByChar('@', email)[2] = 'oracle.com'
+                                              or email like '%oracle%'
+
+union all
+
+select module_ as module, name_ as name, email_ as email,'samsung' as company
+from (select argMax(module, update_at_timestamp) as module_,
+             argMax(name, update_at_timestamp)   as name_,
+             argMax(email, update_at_timestamp)  as email_
+      from linux_maintainer
+      group by module, name, email)
+                                           where splitByChar('@', email)[2] = 'samsung.com'
+                                              or email like '%samsung%'
+
+union all
+
+select module_ as module, name_ as name, email_ as email,'sifive' as company
+from (select argMax(module, update_at_timestamp) as module_,
+             argMax(name, update_at_timestamp)   as name_,
+             argMax(email, update_at_timestamp)  as email_
+      from linux_maintainer
+      group by module, name, email)
+                                           where splitByChar('@', email)[2] = 'sifive.com'
+                                              or email like '%sifive%'
+
+union all
+
+select module_ as module, name_ as name, email_ as email,'suse' as company
+from (select argMax(module, update_at_timestamp) as module_,
+             argMax(name, update_at_timestamp)   as name_,
+             argMax(email, update_at_timestamp)  as email_
+      from linux_maintainer
+      group by module, name, email)
+                                           where splitByChar('@', email)[2] = 'suse.com'
+                                              or email like '%suse%'
+
+union all
+
+select module_ as module, name_ as name, email_ as email,'vmware' as company
+from (select argMax(module, update_at_timestamp) as module_,
+             argMax(name, update_at_timestamp)   as name_,
+             argMax(email, update_at_timestamp)  as email_
+      from linux_maintainer
+      group by module, name, email)
+                                           where splitByChar('@', email)[2] = 'vmware.com'
+                                              or email like '%vmware%'
+
+union all
+
+select module_ as module, name_ as name, email_ as email,'western digital' as company
+from (select argMax(module, update_at_timestamp) as module_,
+             argMax(name, update_at_timestamp)   as name_,
+             argMax(email, update_at_timestamp)  as email_
+      from linux_maintainer
+      group by module, name, email)
+                                           where splitByChar('@', email)[2] = 'wdc.com'
+
+
+union all
+
+select module_ as module, name_ as name, email_ as email,'windriver' as company
+from (select argMax(module, update_at_timestamp) as module_,
+             argMax(name, update_at_timestamp)   as name_,
+             argMax(email, update_at_timestamp)  as email_
+      from linux_maintainer
+      group by module, name, email)
+                                           where splitByChar('@', email)[2] = 'windriver.com'
+                                              or email like '%windriver%'
+
+union all
+
+select module_ as module, name_ as name, email_ as email,'xilinx' as company
+from (select argMax(module, update_at_timestamp) as module_,
+             argMax(name, update_at_timestamp)   as name_,
+             argMax(email, update_at_timestamp)  as email_
+      from linux_maintainer
+      group by module, name, email)
+                                           where splitByChar('@', email)[2] = 'xilinx.com'
+                                              or email like '%xilinx%') as a global left join (select email,final_company_inferred_from_company from (select a.module_ as module,name_ as name,email,final_company_inferred_from_company from (select argMax(module, update_at_timestamp) as module_,
+       argMax(name, update_at_timestamp)   as name_,
+       argMax(email, update_at_timestamp)  as email_
+from linux_maintainer
+group by module, name, email) as a global join (select final_company_inferred_from_company, email
+from (select author__id, commit__author__email, final_company_inferred_from_company
+      from (select author__id, commit__author__email
+            from (select *
+                  from (select author__id, commit__author__email
+                        from (select author__id, commit__author__email
+                              from github_commits
+                              group by author__id, commit__author__email
+                              union all
+                              select committer__id, commit__committer__email
+                              from github_commits
+                              group by committer__id, commit__committer__email)
+                        group by author__id, commit__author__email)
+                  where author__id != 0) as a global
+                     join (select name, email from linux_maintainer group by name, email) as b
+                          on a.commit__author__email = b.email) a global
+               join github_profile as b
+                    on a.author__id = b.id
+      where final_company_inferred_from_company != '') as a global
+         join (select name, email from linux_maintainer group by name, email) as b on a.commit__author__email = b.email
+group by final_company_inferred_from_company, email) as b on a.email_ = b.email order by final_company_inferred_from_company)
+         where email global in
+               (select email from
+                                 (select module_ as module, name_ as name, email_ as email,'huawei' as company
+from (select argMax(module, update_at_timestamp) as module_,
+             argMax(name, update_at_timestamp)   as name_,
+             argMax(email, update_at_timestamp)  as email_
+      from linux_maintainer
+      group by module, name, email)
+where splitByChar('@', email)[2] = 'huawei.com'
+                                              or splitByChar('@', email)[2] = 'hisilicon.com'
+                                              or splitByChar('@', email)[2] = 'huawei.partners.com'
+                                              or splitByChar('@', email)[2] = 'china.huawei.com'
+                                              or splitByChar('@', email)[2] = 'notesmail.huawei.com'
+                                              or splitByChar('@', email)[2] = 'ohos.com.cn'
+                                              or email like '%huawei%'
+
+union all
+
+select module_ as module, name_ as name, email_ as email,'google' as company
+from (select argMax(module, update_at_timestamp) as module_,
+             argMax(name, update_at_timestamp)   as name_,
+             argMax(email, update_at_timestamp)  as email_
+      from linux_maintainer
+      group by module, name, email)
+where splitByChar('@', email)[2] = 'android.com'
+                                              or splitByChar('@', email)[2] = 'chrome.com'
+                                              or splitByChar('@', email)[2] = 'chromium.org'
+                                              or splitByChar('@', email)[2] = 'google.com'
+                                              or splitByChar('@', email)[2] = 'tensorflow.org'
+                                              or email like '%google%'
+
+
+union all
+
+select module_ as module, name_ as name, email_ as email,'meta' as company
+from (select argMax(module, update_at_timestamp) as module_,
+             argMax(name, update_at_timestamp)   as name_,
+             argMax(email, update_at_timestamp)  as email_
+      from linux_maintainer
+      group by module, name, email)
+ where splitByChar('@', email)[2] = 'fb.com'
+                                              or splitByChar('@', email)[2] = 'meta.com'
+                                              or email like '%facebook%'
+
+union all
+
+select module_ as module, name_ as name, email_ as email,'intel' as company
+from (select argMax(module, update_at_timestamp) as module_,
+             argMax(name, update_at_timestamp)   as name_,
+             argMax(email, update_at_timestamp)  as email_
+      from linux_maintainer
+      group by module, name, email)
+where splitByChar('@', email)[2] = 'intel.com'
+                                              or email like '%intel%'
+
+union all
+
+select module_ as module, name_ as name, email_ as email,'redhat' as company
+from (select argMax(module, update_at_timestamp) as module_,
+             argMax(name, update_at_timestamp)   as name_,
+             argMax(email, update_at_timestamp)  as email_
+      from linux_maintainer
+      group by module, name, email)
+   where splitByChar('@', email)[2] = 'redhat.com'
+                                              or email like '%redhat%'
+
+
+union all
+
+select module_ as module, name_ as name, email_ as email,'amd' as company
+from (select argMax(module, update_at_timestamp) as module_,
+             argMax(name, update_at_timestamp)   as name_,
+             argMax(email, update_at_timestamp)  as email_
+      from linux_maintainer
+      group by module, name, email)
+                                           where splitByChar('@', email)[2] = 'amd.com'
+
+union all
+
+select module_ as module, name_ as name, email_ as email,'amazon' as company
+from (select argMax(module, update_at_timestamp) as module_,
+             argMax(name, update_at_timestamp)   as name_,
+             argMax(email, update_at_timestamp)  as email_
+      from linux_maintainer
+      group by module, name, email)
+                                           where splitByChar('@', email)[2] = 'amazon.com'
+                                              or email like '%amazon%'
+
+
+union all
+
+select module_ as module, name_ as name, email_ as email,'pengutronix' as company
+from (select argMax(module, update_at_timestamp) as module_,
+             argMax(name, update_at_timestamp)   as name_,
+             argMax(email, update_at_timestamp)  as email_
+      from linux_maintainer
+      group by module, name, email)
+                                           where splitByChar('@', email)[2] = 'pengutronix.de'
+                                              or email like '%pengutronix%'
+
+
+union all
+
+select module_ as module, name_ as name, email_ as email,'alibaba' as company
+from (select argMax(module, update_at_timestamp) as module_,
+             argMax(name, update_at_timestamp)   as name_,
+             argMax(email, update_at_timestamp)  as email_
+      from linux_maintainer
+      group by module, name, email)
+                                           where
+                                               email like '%alibaba%'
+
+
+union all
+
+select module_ as module, name_ as name, email_ as email,'arm' as company
+from (select argMax(module, update_at_timestamp) as module_,
+             argMax(name, update_at_timestamp)   as name_,
+             argMax(email, update_at_timestamp)  as email_
+      from linux_maintainer
+      group by module, name, email)
+                                           where splitByChar('@', email)[2] = 'arm.com'
+
+
+union all
+
+select module_ as module, name_ as name, email_ as email,'baylibre' as company
+from (select argMax(module, update_at_timestamp) as module_,
+             argMax(name, update_at_timestamp)   as name_,
+             argMax(email, update_at_timestamp)  as email_
+      from linux_maintainer
+      group by module, name, email)
+                                           where splitByChar('@', email)[2] = 'baylibre.com'
+                                              or email like '%baylibre%'
+
+union all
+
+select module_ as module, name_ as name, email_ as email,'canonical' as company
+from (select argMax(module, update_at_timestamp) as module_,
+             argMax(name, update_at_timestamp)   as name_,
+             argMax(email, update_at_timestamp)  as email_
+      from linux_maintainer
+      group by module, name, email)
+                                           where splitByChar('@', email)[2] = 'canonical.com'
+                                              or email like '%canonical%'
+
+union all
+
+select module_ as module, name_ as name, email_ as email,'collabora' as company
+from (select argMax(module, update_at_timestamp) as module_,
+             argMax(name, update_at_timestamp)   as name_,
+             argMax(email, update_at_timestamp)  as email_
+      from linux_maintainer
+      group by module, name, email)
+                                           where splitByChar('@', email)[2] = 'collabora.com'
+                                              or email like '%collabora%'
+
+union all
+
+select module_ as module, name_ as name, email_ as email,'hpe' as company
+from (select argMax(module, update_at_timestamp) as module_,
+             argMax(name, update_at_timestamp)   as name_,
+             argMax(email, update_at_timestamp)  as email_
+      from linux_maintainer
+      group by module, name, email)
+                                           where splitByChar('@', email)[2] = 'hpe.com'
+
+union all
+
+select module_ as module, name_ as name, email_ as email,'ibm' as company
+from (select argMax(module, update_at_timestamp) as module_,
+             argMax(name, update_at_timestamp)   as name_,
+             argMax(email, update_at_timestamp)  as email_
+      from linux_maintainer
+      group by module, name, email)
+                                           where endsWith(splitByChar('@', email)[2],'ibm.com')
+
+union all
+
+select module_ as module, name_ as name, email_ as email,'linaro' as company
+from (select argMax(module, update_at_timestamp) as module_,
+             argMax(name, update_at_timestamp)   as name_,
+             argMax(email, update_at_timestamp)  as email_
+      from linux_maintainer
+      group by module, name, email)
+                                           where splitByChar('@', email)[2] = 'linaro.org'
+                                              or email like '%linaro%'
+
+union all
+
+select module_ as module, name_ as name, email_ as email,'mediatek' as company
+from (select argMax(module, update_at_timestamp) as module_,
+             argMax(name, update_at_timestamp)   as name_,
+             argMax(email, update_at_timestamp)  as email_
+      from linux_maintainer
+      group by module, name, email)
+                                           where splitByChar('@', email)[2] = 'mediatek.com'
+                                              or email like '%mediatek%'
+
+union all
+
+select module_ as module, name_ as name, email_ as email,'marvell' as company
+from (select argMax(module, update_at_timestamp) as module_,
+             argMax(name, update_at_timestamp)   as name_,
+             argMax(email, update_at_timestamp)  as email_
+      from linux_maintainer
+      group by module, name, email)
+                                           where splitByChar('@', email)[2] = 'marvell.com'
+                                              or email like '%marvell%'
+
+union all
+
+select module_ as module, name_ as name, email_ as email,'microsoft' as company
+from (select argMax(module, update_at_timestamp) as module_,
+             argMax(name, update_at_timestamp)   as name_,
+             argMax(email, update_at_timestamp)  as email_
+      from linux_maintainer
+      group by module, name, email)
+                                           where splitByChar('@', email)[2] = 'microsoft.com'
+                                              or email like '%microsoft%'
+
+union all
+
+select module_ as module, name_ as name, email_ as email,'nvidia' as company
+from (select argMax(module, update_at_timestamp) as module_,
+             argMax(name, update_at_timestamp)   as name_,
+             argMax(email, update_at_timestamp)  as email_
+      from linux_maintainer
+      group by module, name, email)
+                                           where splitByChar('@', email)[2] = 'nvidia.com'
+                                              or email like '%nvidia%'
+
+union all
+
+select module_ as module, name_ as name, email_ as email,'nxp' as company
+from (select argMax(module, update_at_timestamp) as module_,
+             argMax(name, update_at_timestamp)   as name_,
+             argMax(email, update_at_timestamp)  as email_
+      from linux_maintainer
+      group by module, name, email)
+                                           where splitByChar('@', email)[2] = 'nxp.com'
+
+
+union all
+
+select module_ as module, name_ as name, email_ as email,'oracle' as company
+from (select argMax(module, update_at_timestamp) as module_,
+             argMax(name, update_at_timestamp)   as name_,
+             argMax(email, update_at_timestamp)  as email_
+      from linux_maintainer
+      group by module, name, email)
+                                           where splitByChar('@', email)[2] = 'oracle.com'
+                                              or email like '%oracle%'
+
+union all
+
+select module_ as module, name_ as name, email_ as email,'samsung' as company
+from (select argMax(module, update_at_timestamp) as module_,
+             argMax(name, update_at_timestamp)   as name_,
+             argMax(email, update_at_timestamp)  as email_
+      from linux_maintainer
+      group by module, name, email)
+                                           where splitByChar('@', email)[2] = 'samsung.com'
+                                              or email like '%samsung%'
+
+union all
+
+select module_ as module, name_ as name, email_ as email,'sifive' as company
+from (select argMax(module, update_at_timestamp) as module_,
+             argMax(name, update_at_timestamp)   as name_,
+             argMax(email, update_at_timestamp)  as email_
+      from linux_maintainer
+      group by module, name, email)
+                                           where splitByChar('@', email)[2] = 'sifive.com'
+                                              or email like '%sifive%'
+
+union all
+
+select module_ as module, name_ as name, email_ as email,'suse' as company
+from (select argMax(module, update_at_timestamp) as module_,
+             argMax(name, update_at_timestamp)   as name_,
+             argMax(email, update_at_timestamp)  as email_
+      from linux_maintainer
+      group by module, name, email)
+                                           where splitByChar('@', email)[2] = 'suse.com'
+                                              or email like '%suse%'
+
+union all
+
+select module_ as module, name_ as name, email_ as email,'vmware' as company
+from (select argMax(module, update_at_timestamp) as module_,
+             argMax(name, update_at_timestamp)   as name_,
+             argMax(email, update_at_timestamp)  as email_
+      from linux_maintainer
+      group by module, name, email)
+                                           where splitByChar('@', email)[2] = 'vmware.com'
+                                              or email like '%vmware%'
+
+union all
+
+select module_ as module, name_ as name, email_ as email,'western digital' as company
+from (select argMax(module, update_at_timestamp) as module_,
+             argMax(name, update_at_timestamp)   as name_,
+             argMax(email, update_at_timestamp)  as email_
+      from linux_maintainer
+      group by module, name, email)
+                                           where splitByChar('@', email)[2] = 'wdc.com'
+
+
+union all
+
+select module_ as module, name_ as name, email_ as email,'windriver' as company
+from (select argMax(module, update_at_timestamp) as module_,
+             argMax(name, update_at_timestamp)   as name_,
+             argMax(email, update_at_timestamp)  as email_
+      from linux_maintainer
+      group by module, name, email)
+                                           where splitByChar('@', email)[2] = 'windriver.com'
+                                              or email like '%windriver%'
+
+union all
+
+select module_ as module, name_ as name, email_ as email,'xilinx' as company
+from (select argMax(module, update_at_timestamp) as module_,
+             argMax(name, update_at_timestamp)   as name_,
+             argMax(email, update_at_timestamp)  as email_
+      from linux_maintainer
+      group by module, name, email)
+                                           where splitByChar('@', email)[2] = 'xilinx.com'
+                                              or email like '%xilinx%') group by email) group by email,final_company_inferred_from_company) as b on a.email = b.email
+
+
+union all
+select module,name,email,final_company_inferred_from_company as company,final_company_inferred_from_company,0 as infered_from_email_domain_and_profile from (select a.module_ as module,name_ as name,email,final_company_inferred_from_company from (select argMax(module, update_at_timestamp) as module_,
+       argMax(name, update_at_timestamp)   as name_,
+       argMax(email, update_at_timestamp)  as email_
+from linux_maintainer
+group by module, name, email) as a global join (select final_company_inferred_from_company, email
+from (select author__id, commit__author__email, final_company_inferred_from_company
+      from (select author__id, commit__author__email
+            from (select *
+                  from (select author__id, commit__author__email
+                        from (select author__id, commit__author__email
+                              from github_commits
+                              group by author__id, commit__author__email
+                              union all
+                              select committer__id, commit__committer__email
+                              from github_commits
+                              group by committer__id, commit__committer__email)
+                        group by author__id, commit__author__email)
+                  where author__id != 0) as a global
+                     join (select name, email from linux_maintainer group by name, email) as b
+                          on a.commit__author__email = b.email) a global
+               join github_profile as b
+                    on a.author__id = b.id
+      where final_company_inferred_from_company != '') as a global
+         join (select name, email from linux_maintainer group by name, email) as b on a.commit__author__email = b.email
+group by final_company_inferred_from_company, email) as b on a.email_ = b.email order by final_company_inferred_from_company)
+         where email global not in
+               (select email from
+                                 (select module_ as module, name_ as name, email_ as email,'huawei' as company
+from (select argMax(module, update_at_timestamp) as module_,
+             argMax(name, update_at_timestamp)   as name_,
+             argMax(email, update_at_timestamp)  as email_
+      from linux_maintainer
+      group by module, name, email)
+where splitByChar('@', email)[2] = 'huawei.com'
+                                              or splitByChar('@', email)[2] = 'hisilicon.com'
+                                              or splitByChar('@', email)[2] = 'huawei.partners.com'
+                                              or splitByChar('@', email)[2] = 'china.huawei.com'
+                                              or splitByChar('@', email)[2] = 'notesmail.huawei.com'
+                                              or splitByChar('@', email)[2] = 'ohos.com.cn'
+                                              or email like '%huawei%'
+
+union all
+
+select module_ as module, name_ as name, email_ as email,'google' as company
+from (select argMax(module, update_at_timestamp) as module_,
+             argMax(name, update_at_timestamp)   as name_,
+             argMax(email, update_at_timestamp)  as email_
+      from linux_maintainer
+      group by module, name, email)
+where splitByChar('@', email)[2] = 'android.com'
+                                              or splitByChar('@', email)[2] = 'chrome.com'
+                                              or splitByChar('@', email)[2] = 'chromium.org'
+                                              or splitByChar('@', email)[2] = 'google.com'
+                                              or splitByChar('@', email)[2] = 'tensorflow.org'
+                                              or email like '%google%'
+
+
+union all
+
+select module_ as module, name_ as name, email_ as email,'meta' as company
+from (select argMax(module, update_at_timestamp) as module_,
+             argMax(name, update_at_timestamp)   as name_,
+             argMax(email, update_at_timestamp)  as email_
+      from linux_maintainer
+      group by module, name, email)
+ where splitByChar('@', email)[2] = 'fb.com'
+                                              or splitByChar('@', email)[2] = 'meta.com'
+                                              or email like '%facebook%'
+
+union all
+
+select module_ as module, name_ as name, email_ as email,'intel' as company
+from (select argMax(module, update_at_timestamp) as module_,
+             argMax(name, update_at_timestamp)   as name_,
+             argMax(email, update_at_timestamp)  as email_
+      from linux_maintainer
+      group by module, name, email)
+where splitByChar('@', email)[2] = 'intel.com'
+                                              or email like '%intel%'
+
+union all
+
+select module_ as module, name_ as name, email_ as email,'redhat' as company
+from (select argMax(module, update_at_timestamp) as module_,
+             argMax(name, update_at_timestamp)   as name_,
+             argMax(email, update_at_timestamp)  as email_
+      from linux_maintainer
+      group by module, name, email)
+   where splitByChar('@', email)[2] = 'redhat.com'
+                                              or email like '%redhat%'
+
+
+union all
+
+select module_ as module, name_ as name, email_ as email,'amd' as company
+from (select argMax(module, update_at_timestamp) as module_,
+             argMax(name, update_at_timestamp)   as name_,
+             argMax(email, update_at_timestamp)  as email_
+      from linux_maintainer
+      group by module, name, email)
+                                           where splitByChar('@', email)[2] = 'amd.com'
+
+union all
+
+select module_ as module, name_ as name, email_ as email,'amazon' as company
+from (select argMax(module, update_at_timestamp) as module_,
+             argMax(name, update_at_timestamp)   as name_,
+             argMax(email, update_at_timestamp)  as email_
+      from linux_maintainer
+      group by module, name, email)
+                                           where splitByChar('@', email)[2] = 'amazon.com'
+                                              or email like '%amazon%'
+
+
+union all
+
+select module_ as module, name_ as name, email_ as email,'pengutronix' as company
+from (select argMax(module, update_at_timestamp) as module_,
+             argMax(name, update_at_timestamp)   as name_,
+             argMax(email, update_at_timestamp)  as email_
+      from linux_maintainer
+      group by module, name, email)
+                                           where splitByChar('@', email)[2] = 'pengutronix.de'
+                                              or email like '%pengutronix%'
+
+
+union all
+
+select module_ as module, name_ as name, email_ as email,'alibaba' as company
+from (select argMax(module, update_at_timestamp) as module_,
+             argMax(name, update_at_timestamp)   as name_,
+             argMax(email, update_at_timestamp)  as email_
+      from linux_maintainer
+      group by module, name, email)
+                                           where
+                                               email like '%alibaba%'
+
+
+union all
+
+select module_ as module, name_ as name, email_ as email,'arm' as company
+from (select argMax(module, update_at_timestamp) as module_,
+             argMax(name, update_at_timestamp)   as name_,
+             argMax(email, update_at_timestamp)  as email_
+      from linux_maintainer
+      group by module, name, email)
+                                           where splitByChar('@', email)[2] = 'arm.com'
+
+
+union all
+
+select module_ as module, name_ as name, email_ as email,'baylibre' as company
+from (select argMax(module, update_at_timestamp) as module_,
+             argMax(name, update_at_timestamp)   as name_,
+             argMax(email, update_at_timestamp)  as email_
+      from linux_maintainer
+      group by module, name, email)
+                                           where splitByChar('@', email)[2] = 'baylibre.com'
+                                              or email like '%baylibre%'
+
+union all
+
+select module_ as module, name_ as name, email_ as email,'canonical' as company
+from (select argMax(module, update_at_timestamp) as module_,
+             argMax(name, update_at_timestamp)   as name_,
+             argMax(email, update_at_timestamp)  as email_
+      from linux_maintainer
+      group by module, name, email)
+                                           where splitByChar('@', email)[2] = 'canonical.com'
+                                              or email like '%canonical%'
+
+union all
+
+select module_ as module, name_ as name, email_ as email,'collabora' as company
+from (select argMax(module, update_at_timestamp) as module_,
+             argMax(name, update_at_timestamp)   as name_,
+             argMax(email, update_at_timestamp)  as email_
+      from linux_maintainer
+      group by module, name, email)
+                                           where splitByChar('@', email)[2] = 'collabora.com'
+                                              or email like '%collabora%'
+
+union all
+
+select module_ as module, name_ as name, email_ as email,'hpe' as company
+from (select argMax(module, update_at_timestamp) as module_,
+             argMax(name, update_at_timestamp)   as name_,
+             argMax(email, update_at_timestamp)  as email_
+      from linux_maintainer
+      group by module, name, email)
+                                           where splitByChar('@', email)[2] = 'hpe.com'
+
+union all
+
+select module_ as module, name_ as name, email_ as email,'ibm' as company
+from (select argMax(module, update_at_timestamp) as module_,
+             argMax(name, update_at_timestamp)   as name_,
+             argMax(email, update_at_timestamp)  as email_
+      from linux_maintainer
+      group by module, name, email)
+                                           where endsWith(splitByChar('@', email)[2],'ibm.com')
+
+union all
+
+select module_ as module, name_ as name, email_ as email,'linaro' as company
+from (select argMax(module, update_at_timestamp) as module_,
+             argMax(name, update_at_timestamp)   as name_,
+             argMax(email, update_at_timestamp)  as email_
+      from linux_maintainer
+      group by module, name, email)
+                                           where splitByChar('@', email)[2] = 'linaro.org'
+                                              or email like '%linaro%'
+
+union all
+
+select module_ as module, name_ as name, email_ as email,'mediatek' as company
+from (select argMax(module, update_at_timestamp) as module_,
+             argMax(name, update_at_timestamp)   as name_,
+             argMax(email, update_at_timestamp)  as email_
+      from linux_maintainer
+      group by module, name, email)
+                                           where splitByChar('@', email)[2] = 'mediatek.com'
+                                              or email like '%mediatek%'
+
+union all
+
+select module_ as module, name_ as name, email_ as email,'marvell' as company
+from (select argMax(module, update_at_timestamp) as module_,
+             argMax(name, update_at_timestamp)   as name_,
+             argMax(email, update_at_timestamp)  as email_
+      from linux_maintainer
+      group by module, name, email)
+                                           where splitByChar('@', email)[2] = 'marvell.com'
+                                              or email like '%marvell%'
+
+union all
+
+select module_ as module, name_ as name, email_ as email,'microsoft' as company
+from (select argMax(module, update_at_timestamp) as module_,
+             argMax(name, update_at_timestamp)   as name_,
+             argMax(email, update_at_timestamp)  as email_
+      from linux_maintainer
+      group by module, name, email)
+                                           where splitByChar('@', email)[2] = 'microsoft.com'
+                                              or email like '%microsoft%'
+
+union all
+
+select module_ as module, name_ as name, email_ as email,'nvidia' as company
+from (select argMax(module, update_at_timestamp) as module_,
+             argMax(name, update_at_timestamp)   as name_,
+             argMax(email, update_at_timestamp)  as email_
+      from linux_maintainer
+      group by module, name, email)
+                                           where splitByChar('@', email)[2] = 'nvidia.com'
+                                              or email like '%nvidia%'
+
+union all
+
+select module_ as module, name_ as name, email_ as email,'nxp' as company
+from (select argMax(module, update_at_timestamp) as module_,
+             argMax(name, update_at_timestamp)   as name_,
+             argMax(email, update_at_timestamp)  as email_
+      from linux_maintainer
+      group by module, name, email)
+                                           where splitByChar('@', email)[2] = 'nxp.com'
+
+
+union all
+
+select module_ as module, name_ as name, email_ as email,'oracle' as company
+from (select argMax(module, update_at_timestamp) as module_,
+             argMax(name, update_at_timestamp)   as name_,
+             argMax(email, update_at_timestamp)  as email_
+      from linux_maintainer
+      group by module, name, email)
+                                           where splitByChar('@', email)[2] = 'oracle.com'
+                                              or email like '%oracle%'
+
+union all
+
+select module_ as module, name_ as name, email_ as email,'samsung' as company
+from (select argMax(module, update_at_timestamp) as module_,
+             argMax(name, update_at_timestamp)   as name_,
+             argMax(email, update_at_timestamp)  as email_
+      from linux_maintainer
+      group by module, name, email)
+                                           where splitByChar('@', email)[2] = 'samsung.com'
+                                              or email like '%samsung%'
+
+union all
+
+select module_ as module, name_ as name, email_ as email,'sifive' as company
+from (select argMax(module, update_at_timestamp) as module_,
+             argMax(name, update_at_timestamp)   as name_,
+             argMax(email, update_at_timestamp)  as email_
+      from linux_maintainer
+      group by module, name, email)
+                                           where splitByChar('@', email)[2] = 'sifive.com'
+                                              or email like '%sifive%'
+
+union all
+
+select module_ as module, name_ as name, email_ as email,'suse' as company
+from (select argMax(module, update_at_timestamp) as module_,
+             argMax(name, update_at_timestamp)   as name_,
+             argMax(email, update_at_timestamp)  as email_
+      from linux_maintainer
+      group by module, name, email)
+                                           where splitByChar('@', email)[2] = 'suse.com'
+                                              or email like '%suse%'
+
+union all
+
+select module_ as module, name_ as name, email_ as email,'vmware' as company
+from (select argMax(module, update_at_timestamp) as module_,
+             argMax(name, update_at_timestamp)   as name_,
+             argMax(email, update_at_timestamp)  as email_
+      from linux_maintainer
+      group by module, name, email)
+                                           where splitByChar('@', email)[2] = 'vmware.com'
+                                              or email like '%vmware%'
+
+union all
+
+select module_ as module, name_ as name, email_ as email,'western digital' as company
+from (select argMax(module, update_at_timestamp) as module_,
+             argMax(name, update_at_timestamp)   as name_,
+             argMax(email, update_at_timestamp)  as email_
+      from linux_maintainer
+      group by module, name, email)
+                                           where splitByChar('@', email)[2] = 'wdc.com'
+
+
+union all
+
+select module_ as module, name_ as name, email_ as email,'windriver' as company
+from (select argMax(module, update_at_timestamp) as module_,
+             argMax(name, update_at_timestamp)   as name_,
+             argMax(email, update_at_timestamp)  as email_
+      from linux_maintainer
+      group by module, name, email)
+                                           where splitByChar('@', email)[2] = 'windriver.com'
+                                              or email like '%windriver%'
+
+union all
+
+select module_ as module, name_ as name, email_ as email,'xilinx' as company
+from (select argMax(module, update_at_timestamp) as module_,
+             argMax(name, update_at_timestamp)   as name_,
+             argMax(email, update_at_timestamp)  as email_
+      from linux_maintainer
+      group by module, name, email)
+                                           where splitByChar('@', email)[2] = 'xilinx.com'
+                                              or email like '%xilinx%') group by email)
