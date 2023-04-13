@@ -1,0 +1,1042 @@
+select module,name,email,company,final_company_inferred_from_company,1 as infered_from_email_domain_and_profile from
+                                                                         (
+                                                                             select module_ as module, name_ as name, email_ as email,'huawei' as company
+from (select argMax(module, update_at_timestamp) as module_,
+             argMax(name, update_at_timestamp)   as name_,
+             argMax(email, update_at_timestamp)  as email_
+      from linux_maintainer
+      group by module, name, email)
+where splitByChar('@', email)[2] = 'huawei.com'
+                                              or splitByChar('@', email)[2] = 'hisilicon.com'
+                                              or splitByChar('@', email)[2] = 'huawei.partners.com'
+                                              or splitByChar('@', email)[2] = 'china.huawei.com'
+                                              or splitByChar('@', email)[2] = 'notesmail.huawei.com'
+                                              or splitByChar('@', email)[2] = 'ohos.com.cn'
+                                              or email like '%huawei%'
+
+union all
+
+select module_ as module, name_ as name, email_ as email,'google' as company
+from (select argMax(module, update_at_timestamp) as module_,
+             argMax(name, update_at_timestamp)   as name_,
+             argMax(email, update_at_timestamp)  as email_
+      from linux_maintainer
+      group by module, name, email)
+where splitByChar('@', email)[2] = 'android.com'
+                                              or splitByChar('@', email)[2] = 'chrome.com'
+                                              or splitByChar('@', email)[2] = 'chromium.org'
+                                              or splitByChar('@', email)[2] = 'google.com'
+                                              or splitByChar('@', email)[2] = 'tensorflow.org'
+                                              or email like '%google%'
+
+
+union all
+
+select module_ as module, name_ as name, email_ as email,'meta' as company
+from (select argMax(module, update_at_timestamp) as module_,
+             argMax(name, update_at_timestamp)   as name_,
+             argMax(email, update_at_timestamp)  as email_
+      from linux_maintainer
+      group by module, name, email)
+ where splitByChar('@', email)[2] = 'fb.com'
+                                              or splitByChar('@', email)[2] = 'meta.com'
+                                              or email like '%facebook%'
+
+union all
+
+select module_ as module, name_ as name, email_ as email,'intel' as company
+from (select argMax(module, update_at_timestamp) as module_,
+             argMax(name, update_at_timestamp)   as name_,
+             argMax(email, update_at_timestamp)  as email_
+      from linux_maintainer
+      group by module, name, email)
+where splitByChar('@', email)[2] = 'intel.com'
+                                              or email like '%intel%'
+
+union all
+
+select module_ as module, name_ as name, email_ as email,'redhat' as company
+from (select argMax(module, update_at_timestamp) as module_,
+             argMax(name, update_at_timestamp)   as name_,
+             argMax(email, update_at_timestamp)  as email_
+      from linux_maintainer
+      group by module, name, email)
+   where splitByChar('@', email)[2] = 'redhat.com'
+                                              or email like '%redhat%'
+
+
+union all
+
+select module_ as module, name_ as name, email_ as email,'amd' as company
+from (select argMax(module, update_at_timestamp) as module_,
+             argMax(name, update_at_timestamp)   as name_,
+             argMax(email, update_at_timestamp)  as email_
+      from linux_maintainer
+      group by module, name, email)
+                                           where splitByChar('@', email)[2] = 'amd.com'
+
+union all
+
+select module_ as module, name_ as name, email_ as email,'amazon' as company
+from (select argMax(module, update_at_timestamp) as module_,
+             argMax(name, update_at_timestamp)   as name_,
+             argMax(email, update_at_timestamp)  as email_
+      from linux_maintainer
+      group by module, name, email)
+                                           where splitByChar('@', email)[2] = 'amazon.com'
+                                              or email like '%amazon%'
+
+
+union all
+
+select module_ as module, name_ as name, email_ as email,'pengutronix' as company
+from (select argMax(module, update_at_timestamp) as module_,
+             argMax(name, update_at_timestamp)   as name_,
+             argMax(email, update_at_timestamp)  as email_
+      from linux_maintainer
+      group by module, name, email)
+                                           where splitByChar('@', email)[2] = 'pengutronix.de'
+                                              or email like '%pengutronix%'
+
+
+union all
+
+select module_ as module, name_ as name, email_ as email,'alibaba' as company
+from (select argMax(module, update_at_timestamp) as module_,
+             argMax(name, update_at_timestamp)   as name_,
+             argMax(email, update_at_timestamp)  as email_
+      from linux_maintainer
+      group by module, name, email)
+                                           where
+                                               email like '%alibaba%'
+
+
+union all
+
+select module_ as module, name_ as name, email_ as email,'arm' as company
+from (select argMax(module, update_at_timestamp) as module_,
+             argMax(name, update_at_timestamp)   as name_,
+             argMax(email, update_at_timestamp)  as email_
+      from linux_maintainer
+      group by module, name, email)
+                                           where splitByChar('@', email)[2] = 'arm.com'
+
+
+union all
+
+select module_ as module, name_ as name, email_ as email,'baylibre' as company
+from (select argMax(module, update_at_timestamp) as module_,
+             argMax(name, update_at_timestamp)   as name_,
+             argMax(email, update_at_timestamp)  as email_
+      from linux_maintainer
+      group by module, name, email)
+                                           where splitByChar('@', email)[2] = 'baylibre.com'
+                                              or email like '%baylibre%'
+
+union all
+
+select module_ as module, name_ as name, email_ as email,'canonical' as company
+from (select argMax(module, update_at_timestamp) as module_,
+             argMax(name, update_at_timestamp)   as name_,
+             argMax(email, update_at_timestamp)  as email_
+      from linux_maintainer
+      group by module, name, email)
+                                           where splitByChar('@', email)[2] = 'canonical.com'
+                                              or email like '%canonical%'
+
+union all
+
+select module_ as module, name_ as name, email_ as email,'collabora' as company
+from (select argMax(module, update_at_timestamp) as module_,
+             argMax(name, update_at_timestamp)   as name_,
+             argMax(email, update_at_timestamp)  as email_
+      from linux_maintainer
+      group by module, name, email)
+                                           where splitByChar('@', email)[2] = 'collabora.com'
+                                              or email like '%collabora%'
+
+union all
+
+select module_ as module, name_ as name, email_ as email,'hpe' as company
+from (select argMax(module, update_at_timestamp) as module_,
+             argMax(name, update_at_timestamp)   as name_,
+             argMax(email, update_at_timestamp)  as email_
+      from linux_maintainer
+      group by module, name, email)
+                                           where splitByChar('@', email)[2] = 'hpe.com'
+
+union all
+
+select module_ as module, name_ as name, email_ as email,'ibm' as company
+from (select argMax(module, update_at_timestamp) as module_,
+             argMax(name, update_at_timestamp)   as name_,
+             argMax(email, update_at_timestamp)  as email_
+      from linux_maintainer
+      group by module, name, email)
+                                           where endsWith(splitByChar('@', email)[2],'ibm.com')
+
+union all
+
+select module_ as module, name_ as name, email_ as email,'linaro' as company
+from (select argMax(module, update_at_timestamp) as module_,
+             argMax(name, update_at_timestamp)   as name_,
+             argMax(email, update_at_timestamp)  as email_
+      from linux_maintainer
+      group by module, name, email)
+                                           where splitByChar('@', email)[2] = 'linaro.org'
+                                              or email like '%linaro%'
+
+union all
+
+select module_ as module, name_ as name, email_ as email,'mediatek' as company
+from (select argMax(module, update_at_timestamp) as module_,
+             argMax(name, update_at_timestamp)   as name_,
+             argMax(email, update_at_timestamp)  as email_
+      from linux_maintainer
+      group by module, name, email)
+                                           where splitByChar('@', email)[2] = 'mediatek.com'
+                                              or email like '%mediatek%'
+
+union all
+
+select module_ as module, name_ as name, email_ as email,'marvell' as company
+from (select argMax(module, update_at_timestamp) as module_,
+             argMax(name, update_at_timestamp)   as name_,
+             argMax(email, update_at_timestamp)  as email_
+      from linux_maintainer
+      group by module, name, email)
+                                           where splitByChar('@', email)[2] = 'marvell.com'
+                                              or email like '%marvell%'
+
+union all
+
+select module_ as module, name_ as name, email_ as email,'microsoft' as company
+from (select argMax(module, update_at_timestamp) as module_,
+             argMax(name, update_at_timestamp)   as name_,
+             argMax(email, update_at_timestamp)  as email_
+      from linux_maintainer
+      group by module, name, email)
+                                           where splitByChar('@', email)[2] = 'microsoft.com'
+                                              or email like '%microsoft%'
+
+union all
+
+select module_ as module, name_ as name, email_ as email,'nvidia' as company
+from (select argMax(module, update_at_timestamp) as module_,
+             argMax(name, update_at_timestamp)   as name_,
+             argMax(email, update_at_timestamp)  as email_
+      from linux_maintainer
+      group by module, name, email)
+                                           where splitByChar('@', email)[2] = 'nvidia.com'
+                                              or email like '%nvidia%'
+
+union all
+
+select module_ as module, name_ as name, email_ as email,'nxp' as company
+from (select argMax(module, update_at_timestamp) as module_,
+             argMax(name, update_at_timestamp)   as name_,
+             argMax(email, update_at_timestamp)  as email_
+      from linux_maintainer
+      group by module, name, email)
+                                           where splitByChar('@', email)[2] = 'nxp.com'
+
+
+union all
+
+select module_ as module, name_ as name, email_ as email,'oracle' as company
+from (select argMax(module, update_at_timestamp) as module_,
+             argMax(name, update_at_timestamp)   as name_,
+             argMax(email, update_at_timestamp)  as email_
+      from linux_maintainer
+      group by module, name, email)
+                                           where splitByChar('@', email)[2] = 'oracle.com'
+                                              or email like '%oracle%'
+
+union all
+
+select module_ as module, name_ as name, email_ as email,'samsung' as company
+from (select argMax(module, update_at_timestamp) as module_,
+             argMax(name, update_at_timestamp)   as name_,
+             argMax(email, update_at_timestamp)  as email_
+      from linux_maintainer
+      group by module, name, email)
+                                           where splitByChar('@', email)[2] = 'samsung.com'
+                                              or email like '%samsung%'
+
+union all
+
+select module_ as module, name_ as name, email_ as email,'sifive' as company
+from (select argMax(module, update_at_timestamp) as module_,
+             argMax(name, update_at_timestamp)   as name_,
+             argMax(email, update_at_timestamp)  as email_
+      from linux_maintainer
+      group by module, name, email)
+                                           where splitByChar('@', email)[2] = 'sifive.com'
+                                              or email like '%sifive%'
+
+union all
+
+select module_ as module, name_ as name, email_ as email,'suse' as company
+from (select argMax(module, update_at_timestamp) as module_,
+             argMax(name, update_at_timestamp)   as name_,
+             argMax(email, update_at_timestamp)  as email_
+      from linux_maintainer
+      group by module, name, email)
+                                           where splitByChar('@', email)[2] = 'suse.com'
+                                              or email like '%suse%'
+
+union all
+
+select module_ as module, name_ as name, email_ as email,'vmware' as company
+from (select argMax(module, update_at_timestamp) as module_,
+             argMax(name, update_at_timestamp)   as name_,
+             argMax(email, update_at_timestamp)  as email_
+      from linux_maintainer
+      group by module, name, email)
+                                           where splitByChar('@', email)[2] = 'vmware.com'
+                                              or email like '%vmware%'
+
+union all
+
+select module_ as module, name_ as name, email_ as email,'western digital' as company
+from (select argMax(module, update_at_timestamp) as module_,
+             argMax(name, update_at_timestamp)   as name_,
+             argMax(email, update_at_timestamp)  as email_
+      from linux_maintainer
+      group by module, name, email)
+                                           where splitByChar('@', email)[2] = 'wdc.com'
+
+
+union all
+
+select module_ as module, name_ as name, email_ as email,'windriver' as company
+from (select argMax(module, update_at_timestamp) as module_,
+             argMax(name, update_at_timestamp)   as name_,
+             argMax(email, update_at_timestamp)  as email_
+      from linux_maintainer
+      group by module, name, email)
+                                           where splitByChar('@', email)[2] = 'windriver.com'
+                                              or email like '%windriver%'
+
+union all
+
+select module_ as module, name_ as name, email_ as email,'xilinx' as company
+from (select argMax(module, update_at_timestamp) as module_,
+             argMax(name, update_at_timestamp)   as name_,
+             argMax(email, update_at_timestamp)  as email_
+      from linux_maintainer
+      group by module, name, email)
+                                           where splitByChar('@', email)[2] = 'xilinx.com'
+                                              or email like '%xilinx%') as a global left join (select email,final_company_inferred_from_company from (select a.module_ as module,name_ as name,email,final_company_inferred_from_company from (select argMax(module, update_at_timestamp) as module_,
+       argMax(name, update_at_timestamp)   as name_,
+       argMax(email, update_at_timestamp)  as email_
+from linux_maintainer
+group by module, name, email) as a global join (select final_company_inferred_from_company, email
+from (select author__id, commit__author__email, final_company_inferred_from_company
+      from (select author__id, commit__author__email
+            from (select *
+                  from (select author__id, commit__author__email
+                        from (select author__id, commit__author__email
+                              from github_commits
+                              group by author__id, commit__author__email
+                              union all
+                              select committer__id, commit__committer__email
+                              from github_commits
+                              group by committer__id, commit__committer__email)
+                        group by author__id, commit__author__email)
+                  where author__id != 0) as a global
+                     join (select name, email from linux_maintainer group by name, email) as b
+                          on a.commit__author__email = b.email) a global
+               join github_profile as b
+                    on a.author__id = b.id
+      where final_company_inferred_from_company != '') as a global
+         join (select name, email from linux_maintainer group by name, email) as b on a.commit__author__email = b.email
+group by final_company_inferred_from_company, email) as b on a.email_ = b.email order by final_company_inferred_from_company)
+         where email global in
+               (select email from
+                                 (select module_ as module, name_ as name, email_ as email,'huawei' as company
+from (select argMax(module, update_at_timestamp) as module_,
+             argMax(name, update_at_timestamp)   as name_,
+             argMax(email, update_at_timestamp)  as email_
+      from linux_maintainer
+      group by module, name, email)
+where splitByChar('@', email)[2] = 'huawei.com'
+                                              or splitByChar('@', email)[2] = 'hisilicon.com'
+                                              or splitByChar('@', email)[2] = 'huawei.partners.com'
+                                              or splitByChar('@', email)[2] = 'china.huawei.com'
+                                              or splitByChar('@', email)[2] = 'notesmail.huawei.com'
+                                              or splitByChar('@', email)[2] = 'ohos.com.cn'
+                                              or email like '%huawei%'
+
+union all
+
+select module_ as module, name_ as name, email_ as email,'google' as company
+from (select argMax(module, update_at_timestamp) as module_,
+             argMax(name, update_at_timestamp)   as name_,
+             argMax(email, update_at_timestamp)  as email_
+      from linux_maintainer
+      group by module, name, email)
+where splitByChar('@', email)[2] = 'android.com'
+                                              or splitByChar('@', email)[2] = 'chrome.com'
+                                              or splitByChar('@', email)[2] = 'chromium.org'
+                                              or splitByChar('@', email)[2] = 'google.com'
+                                              or splitByChar('@', email)[2] = 'tensorflow.org'
+                                              or email like '%google%'
+
+
+union all
+
+select module_ as module, name_ as name, email_ as email,'meta' as company
+from (select argMax(module, update_at_timestamp) as module_,
+             argMax(name, update_at_timestamp)   as name_,
+             argMax(email, update_at_timestamp)  as email_
+      from linux_maintainer
+      group by module, name, email)
+ where splitByChar('@', email)[2] = 'fb.com'
+                                              or splitByChar('@', email)[2] = 'meta.com'
+                                              or email like '%facebook%'
+
+union all
+
+select module_ as module, name_ as name, email_ as email,'intel' as company
+from (select argMax(module, update_at_timestamp) as module_,
+             argMax(name, update_at_timestamp)   as name_,
+             argMax(email, update_at_timestamp)  as email_
+      from linux_maintainer
+      group by module, name, email)
+where splitByChar('@', email)[2] = 'intel.com'
+                                              or email like '%intel%'
+
+union all
+
+select module_ as module, name_ as name, email_ as email,'redhat' as company
+from (select argMax(module, update_at_timestamp) as module_,
+             argMax(name, update_at_timestamp)   as name_,
+             argMax(email, update_at_timestamp)  as email_
+      from linux_maintainer
+      group by module, name, email)
+   where splitByChar('@', email)[2] = 'redhat.com'
+                                              or email like '%redhat%'
+
+
+union all
+
+select module_ as module, name_ as name, email_ as email,'amd' as company
+from (select argMax(module, update_at_timestamp) as module_,
+             argMax(name, update_at_timestamp)   as name_,
+             argMax(email, update_at_timestamp)  as email_
+      from linux_maintainer
+      group by module, name, email)
+                                           where splitByChar('@', email)[2] = 'amd.com'
+
+union all
+
+select module_ as module, name_ as name, email_ as email,'amazon' as company
+from (select argMax(module, update_at_timestamp) as module_,
+             argMax(name, update_at_timestamp)   as name_,
+             argMax(email, update_at_timestamp)  as email_
+      from linux_maintainer
+      group by module, name, email)
+                                           where splitByChar('@', email)[2] = 'amazon.com'
+                                              or email like '%amazon%'
+
+
+union all
+
+select module_ as module, name_ as name, email_ as email,'pengutronix' as company
+from (select argMax(module, update_at_timestamp) as module_,
+             argMax(name, update_at_timestamp)   as name_,
+             argMax(email, update_at_timestamp)  as email_
+      from linux_maintainer
+      group by module, name, email)
+                                           where splitByChar('@', email)[2] = 'pengutronix.de'
+                                              or email like '%pengutronix%'
+
+
+union all
+
+select module_ as module, name_ as name, email_ as email,'alibaba' as company
+from (select argMax(module, update_at_timestamp) as module_,
+             argMax(name, update_at_timestamp)   as name_,
+             argMax(email, update_at_timestamp)  as email_
+      from linux_maintainer
+      group by module, name, email)
+                                           where
+                                               email like '%alibaba%'
+
+
+union all
+
+select module_ as module, name_ as name, email_ as email,'arm' as company
+from (select argMax(module, update_at_timestamp) as module_,
+             argMax(name, update_at_timestamp)   as name_,
+             argMax(email, update_at_timestamp)  as email_
+      from linux_maintainer
+      group by module, name, email)
+                                           where splitByChar('@', email)[2] = 'arm.com'
+
+
+union all
+
+select module_ as module, name_ as name, email_ as email,'baylibre' as company
+from (select argMax(module, update_at_timestamp) as module_,
+             argMax(name, update_at_timestamp)   as name_,
+             argMax(email, update_at_timestamp)  as email_
+      from linux_maintainer
+      group by module, name, email)
+                                           where splitByChar('@', email)[2] = 'baylibre.com'
+                                              or email like '%baylibre%'
+
+union all
+
+select module_ as module, name_ as name, email_ as email,'canonical' as company
+from (select argMax(module, update_at_timestamp) as module_,
+             argMax(name, update_at_timestamp)   as name_,
+             argMax(email, update_at_timestamp)  as email_
+      from linux_maintainer
+      group by module, name, email)
+                                           where splitByChar('@', email)[2] = 'canonical.com'
+                                              or email like '%canonical%'
+
+union all
+
+select module_ as module, name_ as name, email_ as email,'collabora' as company
+from (select argMax(module, update_at_timestamp) as module_,
+             argMax(name, update_at_timestamp)   as name_,
+             argMax(email, update_at_timestamp)  as email_
+      from linux_maintainer
+      group by module, name, email)
+                                           where splitByChar('@', email)[2] = 'collabora.com'
+                                              or email like '%collabora%'
+
+union all
+
+select module_ as module, name_ as name, email_ as email,'hpe' as company
+from (select argMax(module, update_at_timestamp) as module_,
+             argMax(name, update_at_timestamp)   as name_,
+             argMax(email, update_at_timestamp)  as email_
+      from linux_maintainer
+      group by module, name, email)
+                                           where splitByChar('@', email)[2] = 'hpe.com'
+
+union all
+
+select module_ as module, name_ as name, email_ as email,'ibm' as company
+from (select argMax(module, update_at_timestamp) as module_,
+             argMax(name, update_at_timestamp)   as name_,
+             argMax(email, update_at_timestamp)  as email_
+      from linux_maintainer
+      group by module, name, email)
+                                           where endsWith(splitByChar('@', email)[2],'ibm.com')
+
+union all
+
+select module_ as module, name_ as name, email_ as email,'linaro' as company
+from (select argMax(module, update_at_timestamp) as module_,
+             argMax(name, update_at_timestamp)   as name_,
+             argMax(email, update_at_timestamp)  as email_
+      from linux_maintainer
+      group by module, name, email)
+                                           where splitByChar('@', email)[2] = 'linaro.org'
+                                              or email like '%linaro%'
+
+union all
+
+select module_ as module, name_ as name, email_ as email,'mediatek' as company
+from (select argMax(module, update_at_timestamp) as module_,
+             argMax(name, update_at_timestamp)   as name_,
+             argMax(email, update_at_timestamp)  as email_
+      from linux_maintainer
+      group by module, name, email)
+                                           where splitByChar('@', email)[2] = 'mediatek.com'
+                                              or email like '%mediatek%'
+
+union all
+
+select module_ as module, name_ as name, email_ as email,'marvell' as company
+from (select argMax(module, update_at_timestamp) as module_,
+             argMax(name, update_at_timestamp)   as name_,
+             argMax(email, update_at_timestamp)  as email_
+      from linux_maintainer
+      group by module, name, email)
+                                           where splitByChar('@', email)[2] = 'marvell.com'
+                                              or email like '%marvell%'
+
+union all
+
+select module_ as module, name_ as name, email_ as email,'microsoft' as company
+from (select argMax(module, update_at_timestamp) as module_,
+             argMax(name, update_at_timestamp)   as name_,
+             argMax(email, update_at_timestamp)  as email_
+      from linux_maintainer
+      group by module, name, email)
+                                           where splitByChar('@', email)[2] = 'microsoft.com'
+                                              or email like '%microsoft%'
+
+union all
+
+select module_ as module, name_ as name, email_ as email,'nvidia' as company
+from (select argMax(module, update_at_timestamp) as module_,
+             argMax(name, update_at_timestamp)   as name_,
+             argMax(email, update_at_timestamp)  as email_
+      from linux_maintainer
+      group by module, name, email)
+                                           where splitByChar('@', email)[2] = 'nvidia.com'
+                                              or email like '%nvidia%'
+
+union all
+
+select module_ as module, name_ as name, email_ as email,'nxp' as company
+from (select argMax(module, update_at_timestamp) as module_,
+             argMax(name, update_at_timestamp)   as name_,
+             argMax(email, update_at_timestamp)  as email_
+      from linux_maintainer
+      group by module, name, email)
+                                           where splitByChar('@', email)[2] = 'nxp.com'
+
+
+union all
+
+select module_ as module, name_ as name, email_ as email,'oracle' as company
+from (select argMax(module, update_at_timestamp) as module_,
+             argMax(name, update_at_timestamp)   as name_,
+             argMax(email, update_at_timestamp)  as email_
+      from linux_maintainer
+      group by module, name, email)
+                                           where splitByChar('@', email)[2] = 'oracle.com'
+                                              or email like '%oracle%'
+
+union all
+
+select module_ as module, name_ as name, email_ as email,'samsung' as company
+from (select argMax(module, update_at_timestamp) as module_,
+             argMax(name, update_at_timestamp)   as name_,
+             argMax(email, update_at_timestamp)  as email_
+      from linux_maintainer
+      group by module, name, email)
+                                           where splitByChar('@', email)[2] = 'samsung.com'
+                                              or email like '%samsung%'
+
+union all
+
+select module_ as module, name_ as name, email_ as email,'sifive' as company
+from (select argMax(module, update_at_timestamp) as module_,
+             argMax(name, update_at_timestamp)   as name_,
+             argMax(email, update_at_timestamp)  as email_
+      from linux_maintainer
+      group by module, name, email)
+                                           where splitByChar('@', email)[2] = 'sifive.com'
+                                              or email like '%sifive%'
+
+union all
+
+select module_ as module, name_ as name, email_ as email,'suse' as company
+from (select argMax(module, update_at_timestamp) as module_,
+             argMax(name, update_at_timestamp)   as name_,
+             argMax(email, update_at_timestamp)  as email_
+      from linux_maintainer
+      group by module, name, email)
+                                           where splitByChar('@', email)[2] = 'suse.com'
+                                              or email like '%suse%'
+
+union all
+
+select module_ as module, name_ as name, email_ as email,'vmware' as company
+from (select argMax(module, update_at_timestamp) as module_,
+             argMax(name, update_at_timestamp)   as name_,
+             argMax(email, update_at_timestamp)  as email_
+      from linux_maintainer
+      group by module, name, email)
+                                           where splitByChar('@', email)[2] = 'vmware.com'
+                                              or email like '%vmware%'
+
+union all
+
+select module_ as module, name_ as name, email_ as email,'western digital' as company
+from (select argMax(module, update_at_timestamp) as module_,
+             argMax(name, update_at_timestamp)   as name_,
+             argMax(email, update_at_timestamp)  as email_
+      from linux_maintainer
+      group by module, name, email)
+                                           where splitByChar('@', email)[2] = 'wdc.com'
+
+
+union all
+
+select module_ as module, name_ as name, email_ as email,'windriver' as company
+from (select argMax(module, update_at_timestamp) as module_,
+             argMax(name, update_at_timestamp)   as name_,
+             argMax(email, update_at_timestamp)  as email_
+      from linux_maintainer
+      group by module, name, email)
+                                           where splitByChar('@', email)[2] = 'windriver.com'
+                                              or email like '%windriver%'
+
+union all
+
+select module_ as module, name_ as name, email_ as email,'xilinx' as company
+from (select argMax(module, update_at_timestamp) as module_,
+             argMax(name, update_at_timestamp)   as name_,
+             argMax(email, update_at_timestamp)  as email_
+      from linux_maintainer
+      group by module, name, email)
+                                           where splitByChar('@', email)[2] = 'xilinx.com'
+                                              or email like '%xilinx%') group by email) group by email,final_company_inferred_from_company) as b on a.email = b.email
+
+
+union all
+select module,name,email,final_company_inferred_from_company as company,final_company_inferred_from_company,0 as infered_from_email_domain_and_profile from (select a.module_ as module,name_ as name,email,final_company_inferred_from_company from (select argMax(module, update_at_timestamp) as module_,
+       argMax(name, update_at_timestamp)   as name_,
+       argMax(email, update_at_timestamp)  as email_
+from linux_maintainer
+group by module, name, email) as a global join (select final_company_inferred_from_company, email
+from (select author__id, commit__author__email, final_company_inferred_from_company
+      from (select author__id, commit__author__email
+            from (select *
+                  from (select author__id, commit__author__email
+                        from (select author__id, commit__author__email
+                              from github_commits
+                              group by author__id, commit__author__email
+                              union all
+                              select committer__id, commit__committer__email
+                              from github_commits
+                              group by committer__id, commit__committer__email)
+                        group by author__id, commit__author__email)
+                  where author__id != 0) as a global
+                     join (select name, email from linux_maintainer group by name, email) as b
+                          on a.commit__author__email = b.email) a global
+               join github_profile as b
+                    on a.author__id = b.id
+      where final_company_inferred_from_company != '') as a global
+         join (select name, email from linux_maintainer group by name, email) as b on a.commit__author__email = b.email
+group by final_company_inferred_from_company, email) as b on a.email_ = b.email order by final_company_inferred_from_company)
+         where email global not in
+               (select email from
+                                 (select module_ as module, name_ as name, email_ as email,'huawei' as company
+from (select argMax(module, update_at_timestamp) as module_,
+             argMax(name, update_at_timestamp)   as name_,
+             argMax(email, update_at_timestamp)  as email_
+      from linux_maintainer
+      group by module, name, email)
+where splitByChar('@', email)[2] = 'huawei.com'
+                                              or splitByChar('@', email)[2] = 'hisilicon.com'
+                                              or splitByChar('@', email)[2] = 'huawei.partners.com'
+                                              or splitByChar('@', email)[2] = 'china.huawei.com'
+                                              or splitByChar('@', email)[2] = 'notesmail.huawei.com'
+                                              or splitByChar('@', email)[2] = 'ohos.com.cn'
+                                              or email like '%huawei%'
+
+union all
+
+select module_ as module, name_ as name, email_ as email,'google' as company
+from (select argMax(module, update_at_timestamp) as module_,
+             argMax(name, update_at_timestamp)   as name_,
+             argMax(email, update_at_timestamp)  as email_
+      from linux_maintainer
+      group by module, name, email)
+where splitByChar('@', email)[2] = 'android.com'
+                                              or splitByChar('@', email)[2] = 'chrome.com'
+                                              or splitByChar('@', email)[2] = 'chromium.org'
+                                              or splitByChar('@', email)[2] = 'google.com'
+                                              or splitByChar('@', email)[2] = 'tensorflow.org'
+                                              or email like '%google%'
+
+
+union all
+
+select module_ as module, name_ as name, email_ as email,'meta' as company
+from (select argMax(module, update_at_timestamp) as module_,
+             argMax(name, update_at_timestamp)   as name_,
+             argMax(email, update_at_timestamp)  as email_
+      from linux_maintainer
+      group by module, name, email)
+ where splitByChar('@', email)[2] = 'fb.com'
+                                              or splitByChar('@', email)[2] = 'meta.com'
+                                              or email like '%facebook%'
+
+union all
+
+select module_ as module, name_ as name, email_ as email,'intel' as company
+from (select argMax(module, update_at_timestamp) as module_,
+             argMax(name, update_at_timestamp)   as name_,
+             argMax(email, update_at_timestamp)  as email_
+      from linux_maintainer
+      group by module, name, email)
+where splitByChar('@', email)[2] = 'intel.com'
+                                              or email like '%intel%'
+
+union all
+
+select module_ as module, name_ as name, email_ as email,'redhat' as company
+from (select argMax(module, update_at_timestamp) as module_,
+             argMax(name, update_at_timestamp)   as name_,
+             argMax(email, update_at_timestamp)  as email_
+      from linux_maintainer
+      group by module, name, email)
+   where splitByChar('@', email)[2] = 'redhat.com'
+                                              or email like '%redhat%'
+
+
+union all
+
+select module_ as module, name_ as name, email_ as email,'amd' as company
+from (select argMax(module, update_at_timestamp) as module_,
+             argMax(name, update_at_timestamp)   as name_,
+             argMax(email, update_at_timestamp)  as email_
+      from linux_maintainer
+      group by module, name, email)
+                                           where splitByChar('@', email)[2] = 'amd.com'
+
+union all
+
+select module_ as module, name_ as name, email_ as email,'amazon' as company
+from (select argMax(module, update_at_timestamp) as module_,
+             argMax(name, update_at_timestamp)   as name_,
+             argMax(email, update_at_timestamp)  as email_
+      from linux_maintainer
+      group by module, name, email)
+                                           where splitByChar('@', email)[2] = 'amazon.com'
+                                              or email like '%amazon%'
+
+
+union all
+
+select module_ as module, name_ as name, email_ as email,'pengutronix' as company
+from (select argMax(module, update_at_timestamp) as module_,
+             argMax(name, update_at_timestamp)   as name_,
+             argMax(email, update_at_timestamp)  as email_
+      from linux_maintainer
+      group by module, name, email)
+                                           where splitByChar('@', email)[2] = 'pengutronix.de'
+                                              or email like '%pengutronix%'
+
+
+union all
+
+select module_ as module, name_ as name, email_ as email,'alibaba' as company
+from (select argMax(module, update_at_timestamp) as module_,
+             argMax(name, update_at_timestamp)   as name_,
+             argMax(email, update_at_timestamp)  as email_
+      from linux_maintainer
+      group by module, name, email)
+                                           where
+                                               email like '%alibaba%'
+
+
+union all
+
+select module_ as module, name_ as name, email_ as email,'arm' as company
+from (select argMax(module, update_at_timestamp) as module_,
+             argMax(name, update_at_timestamp)   as name_,
+             argMax(email, update_at_timestamp)  as email_
+      from linux_maintainer
+      group by module, name, email)
+                                           where splitByChar('@', email)[2] = 'arm.com'
+
+
+union all
+
+select module_ as module, name_ as name, email_ as email,'baylibre' as company
+from (select argMax(module, update_at_timestamp) as module_,
+             argMax(name, update_at_timestamp)   as name_,
+             argMax(email, update_at_timestamp)  as email_
+      from linux_maintainer
+      group by module, name, email)
+                                           where splitByChar('@', email)[2] = 'baylibre.com'
+                                              or email like '%baylibre%'
+
+union all
+
+select module_ as module, name_ as name, email_ as email,'canonical' as company
+from (select argMax(module, update_at_timestamp) as module_,
+             argMax(name, update_at_timestamp)   as name_,
+             argMax(email, update_at_timestamp)  as email_
+      from linux_maintainer
+      group by module, name, email)
+                                           where splitByChar('@', email)[2] = 'canonical.com'
+                                              or email like '%canonical%'
+
+union all
+
+select module_ as module, name_ as name, email_ as email,'collabora' as company
+from (select argMax(module, update_at_timestamp) as module_,
+             argMax(name, update_at_timestamp)   as name_,
+             argMax(email, update_at_timestamp)  as email_
+      from linux_maintainer
+      group by module, name, email)
+                                           where splitByChar('@', email)[2] = 'collabora.com'
+                                              or email like '%collabora%'
+
+union all
+
+select module_ as module, name_ as name, email_ as email,'hpe' as company
+from (select argMax(module, update_at_timestamp) as module_,
+             argMax(name, update_at_timestamp)   as name_,
+             argMax(email, update_at_timestamp)  as email_
+      from linux_maintainer
+      group by module, name, email)
+                                           where splitByChar('@', email)[2] = 'hpe.com'
+
+union all
+
+select module_ as module, name_ as name, email_ as email,'ibm' as company
+from (select argMax(module, update_at_timestamp) as module_,
+             argMax(name, update_at_timestamp)   as name_,
+             argMax(email, update_at_timestamp)  as email_
+      from linux_maintainer
+      group by module, name, email)
+                                           where endsWith(splitByChar('@', email)[2],'ibm.com')
+
+union all
+
+select module_ as module, name_ as name, email_ as email,'linaro' as company
+from (select argMax(module, update_at_timestamp) as module_,
+             argMax(name, update_at_timestamp)   as name_,
+             argMax(email, update_at_timestamp)  as email_
+      from linux_maintainer
+      group by module, name, email)
+                                           where splitByChar('@', email)[2] = 'linaro.org'
+                                              or email like '%linaro%'
+
+union all
+
+select module_ as module, name_ as name, email_ as email,'mediatek' as company
+from (select argMax(module, update_at_timestamp) as module_,
+             argMax(name, update_at_timestamp)   as name_,
+             argMax(email, update_at_timestamp)  as email_
+      from linux_maintainer
+      group by module, name, email)
+                                           where splitByChar('@', email)[2] = 'mediatek.com'
+                                              or email like '%mediatek%'
+
+union all
+
+select module_ as module, name_ as name, email_ as email,'marvell' as company
+from (select argMax(module, update_at_timestamp) as module_,
+             argMax(name, update_at_timestamp)   as name_,
+             argMax(email, update_at_timestamp)  as email_
+      from linux_maintainer
+      group by module, name, email)
+                                           where splitByChar('@', email)[2] = 'marvell.com'
+                                              or email like '%marvell%'
+
+union all
+
+select module_ as module, name_ as name, email_ as email,'microsoft' as company
+from (select argMax(module, update_at_timestamp) as module_,
+             argMax(name, update_at_timestamp)   as name_,
+             argMax(email, update_at_timestamp)  as email_
+      from linux_maintainer
+      group by module, name, email)
+                                           where splitByChar('@', email)[2] = 'microsoft.com'
+                                              or email like '%microsoft%'
+
+union all
+
+select module_ as module, name_ as name, email_ as email,'nvidia' as company
+from (select argMax(module, update_at_timestamp) as module_,
+             argMax(name, update_at_timestamp)   as name_,
+             argMax(email, update_at_timestamp)  as email_
+      from linux_maintainer
+      group by module, name, email)
+                                           where splitByChar('@', email)[2] = 'nvidia.com'
+                                              or email like '%nvidia%'
+
+union all
+
+select module_ as module, name_ as name, email_ as email,'nxp' as company
+from (select argMax(module, update_at_timestamp) as module_,
+             argMax(name, update_at_timestamp)   as name_,
+             argMax(email, update_at_timestamp)  as email_
+      from linux_maintainer
+      group by module, name, email)
+                                           where splitByChar('@', email)[2] = 'nxp.com'
+
+
+union all
+
+select module_ as module, name_ as name, email_ as email,'oracle' as company
+from (select argMax(module, update_at_timestamp) as module_,
+             argMax(name, update_at_timestamp)   as name_,
+             argMax(email, update_at_timestamp)  as email_
+      from linux_maintainer
+      group by module, name, email)
+                                           where splitByChar('@', email)[2] = 'oracle.com'
+                                              or email like '%oracle%'
+
+union all
+
+select module_ as module, name_ as name, email_ as email,'samsung' as company
+from (select argMax(module, update_at_timestamp) as module_,
+             argMax(name, update_at_timestamp)   as name_,
+             argMax(email, update_at_timestamp)  as email_
+      from linux_maintainer
+      group by module, name, email)
+                                           where splitByChar('@', email)[2] = 'samsung.com'
+                                              or email like '%samsung%'
+
+union all
+
+select module_ as module, name_ as name, email_ as email,'sifive' as company
+from (select argMax(module, update_at_timestamp) as module_,
+             argMax(name, update_at_timestamp)   as name_,
+             argMax(email, update_at_timestamp)  as email_
+      from linux_maintainer
+      group by module, name, email)
+                                           where splitByChar('@', email)[2] = 'sifive.com'
+                                              or email like '%sifive%'
+
+union all
+
+select module_ as module, name_ as name, email_ as email,'suse' as company
+from (select argMax(module, update_at_timestamp) as module_,
+             argMax(name, update_at_timestamp)   as name_,
+             argMax(email, update_at_timestamp)  as email_
+      from linux_maintainer
+      group by module, name, email)
+                                           where splitByChar('@', email)[2] = 'suse.com'
+                                              or email like '%suse%'
+
+union all
+
+select module_ as module, name_ as name, email_ as email,'vmware' as company
+from (select argMax(module, update_at_timestamp) as module_,
+             argMax(name, update_at_timestamp)   as name_,
+             argMax(email, update_at_timestamp)  as email_
+      from linux_maintainer
+      group by module, name, email)
+                                           where splitByChar('@', email)[2] = 'vmware.com'
+                                              or email like '%vmware%'
+
+union all
+
+select module_ as module, name_ as name, email_ as email,'western digital' as company
+from (select argMax(module, update_at_timestamp) as module_,
+             argMax(name, update_at_timestamp)   as name_,
+             argMax(email, update_at_timestamp)  as email_
+      from linux_maintainer
+      group by module, name, email)
+                                           where splitByChar('@', email)[2] = 'wdc.com'
+
+
+union all
+
+select module_ as module, name_ as name, email_ as email,'windriver' as company
+from (select argMax(module, update_at_timestamp) as module_,
+             argMax(name, update_at_timestamp)   as name_,
+             argMax(email, update_at_timestamp)  as email_
+      from linux_maintainer
+      group by module, name, email)
+                                           where splitByChar('@', email)[2] = 'windriver.com'
+                                              or email like '%windriver%'
+
+union all
+
+select module_ as module, name_ as name, email_ as email,'xilinx' as company
+from (select argMax(module, update_at_timestamp) as module_,
+             argMax(name, update_at_timestamp)   as name_,
+             argMax(email, update_at_timestamp)  as email_
+      from linux_maintainer
+      group by module, name, email)
+                                           where splitByChar('@', email)[2] = 'xilinx.com'
+                                              or email like '%xilinx%') group by email)
