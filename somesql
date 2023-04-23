@@ -3059,3 +3059,95 @@ from (select argMax(module, update_at_timestamp) as module_,
       group by module, name, email)
                                            where splitByChar('@', email)[2] = 'xilinx.com'
                                               or email like '%xilinx%') group by email)
+                                              
+                                              
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+-- 先跑了email_main_tz_map中间表获取程序,从email_main_tz_map解析出来主要贡献是中国的邮箱,过滤掉[bot],通过github commit 找到github id,再找到profile,聚合每个邮箱下更改的文件,以及每个文件更改行数,将修改文件的filename(a=>b)修改成b 而正链表
+select a.*, b.dir_or_file, total_lines, total_insertions, total_delations, alter_file_count
+from (select *
+      from (select a.*, b.final_company_inferred_from_company, location
+            from (select a.*, b.author__id, author__login
+                  from (select a.*, b.top_n_tz_area
+                        from (select search_key__owner, search_key__repo, author_email, count() as commit_count
+                              from gits
+                              where if_merged = 0
+                                and search_key__owner = 'ray-project'
+                                and search_key__repo = 'ray'
+                                and author_email != ''
+                                and author_email not like '%[bot]%'
+                              group by search_key__owner, search_key__repo, author_email) as a global
+                                 join (select * from email_main_tz_map where main_tz_area = '中国') as b
+                                      on a.author_email = b.email
+                        order by search_key__owner, search_key__repo, commit_count desc) as a global
+                           left join (select commit__author__email, author__id, author__login
+                                      from github_commits
+                                      group by commit__author__email, author__id, author__login)
+                      as b on a.author_email = b.commit__author__email) as a global
+                     left join (select id, final_company_inferred_from_company, location from github_profile) as b
+                               on a.author__id = b.id)
+      limit 20) as a global
+         left join (select search_key__owner,
+                           search_key__repo,
+                           author_email,
+                           arrayStringConcat(dir_name_or_file_name, '/') dir_or_file,
+                           total_lines,
+                           total_insertions,
+                           total_delations,
+                           alter_file_count
+                    from (select search_key__owner,
+                                 search_key__repo,
+                                 author_email,
+                                 dir_name_or_file_name,
+                                 sum(lines)      as total_lines,
+                                 sum(insertions) as total_insertions,
+                                 sum(deletions)  as total_delations,
+                                 count()         as alter_file_count
+                          from (select *,
+                                       splitByChar('/', file_name) as split_file_name,
+                                       length(split_file_name)     as split_file_name_len,
+                                       multiIf(split_file_name_len = 1, split_file_name, split_file_name_len = 2,
+                                               arraySlice(split_file_name, 1, 1),
+                                               split_file_name_len > 2, arraySlice(split_file_name, 1, 2),
+                                               split_file_name)    as dir_name_or_file_name
+                                from (select search_key__owner,
+                                             search_key__repo,
+                                             author_email,
+                                             author_name,
+                                             if(`files.file_name` like '%=>%',
+                                                replace(replaceRegexpAll(`files.file_name`, '\\{[^{}]*=> ', ''), '}',
+                                                        ''),
+                                                `files.file_name`)
+                                                                as file_name,
+                                             `files.lines`      as lines,
+                                             `files.insertions` as insertions,
+                                             `files.deletions`  as deletions
+                                      from gits array join `files.file_name`, `files.lines`, `files.insertions`, `files.deletions`
+                                      where search_key__owner = 'ray-project'
+                                        and search_key__repo = 'ray'
+                                        and if_merged = 0)
+                                   )
+                          group by search_key__owner, search_key__repo, author_email, dir_name_or_file_name)) as b
+                   on a.author_email = b.author_email and a.search_key__owner = b.search_key__owner and
+                      a.search_key__repo = b.search_key__repo
+order by commit_count desc, total_lines desc, total_insertions desc, total_delations desc;
