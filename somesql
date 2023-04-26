@@ -3151,3 +3151,87 @@ from (select *
                    on a.author_email = b.author_email and a.search_key__owner = b.search_key__owner and
                       a.search_key__repo = b.search_key__repo
 order by commit_count desc, total_lines desc, total_insertions desc, total_delations desc;
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+--------------------------------------------------------------------------------------------------------------------------------------------------------------------
+表头
+search_key__owner,search_key__repo,author__id,emails,areas,author__login,company,final_company_inferred_from_company,location,commit_count,total_lines,total_insertions,total_deletions,total_files,repo_total_lines,repo_total_insertions,repo_total_deletions,repo_total_files,lines_percentage(%),insertions_percentage(%),deletions_percentage(%),alter_files_percentage(%)
+
+
+
+select *,
+       round(total_lines / repo_total_lines * 100, 3) as        `lines_percentage(%)`,
+       round(total_insertions / repo_total_insertions * 100, 3) `insertions_percentage(%)`,
+       round(total_deletions / repo_total_deletions * 100, 3) `deletions_percentage(%)`,
+       round(total_files / repo_total_files * 100, 3) `alter_files_percentage(%)`
+from (select search_key__owner,
+       search_key__repo,
+       author__id,
+       groupArray(author_email) as emails,
+       groupArray(top_n_tz_area) as areas,
+       author__login,
+       company,
+       final_company_inferred_from_company,
+       location,
+       sum(commit_count) as commit_count,
+       sum(total_lines) total_lines,
+       sum(total_insertions) total_insertions,
+       sum(total_deletions) total_deletions,
+       sum(total_files) total_files
+from (select a.*, b.total_lines, b.total_insertions, b.total_deletions, b.total_files
+      from (select *
+            from (select *
+                  from (select a.*, b.final_company_inferred_from_company, location,company
+                        from (select a.*, b.author__id, author__login
+                              from (select a.*, b.top_n_tz_area
+                                    from (select search_key__owner,
+                                                 search_key__repo,
+                                                 author_email,
+                                                 count() as commit_count
+                                          from gits
+                                          where if_merged = 0
+                                            and search_key__owner = 'microsoft'
+                                            and search_key__repo = 'DeepSpeed'
+                                            and author_email != ''
+                                            and author_email not like '%[bot]%'
+                                          group by search_key__owner, search_key__repo, author_email) as a global
+                                             join (select * from email_main_tz_map ) as b
+                                                  on a.author_email = b.email
+                                    order by search_key__owner, search_key__repo, commit_count desc) as a global
+                                       left join (select commit__author__email, author__id, author__login
+                                                  from github_commits
+                                                  group by commit__author__email, author__id, author__login)
+                                  as b on a.author_email = b.commit__author__email) as a global
+                                 left join (select id, final_company_inferred_from_company, location,company
+                                            from github_profile group by id, final_company_inferred_from_company, location,company) as b
+                                           on a.author__id = b.id)
+                  )) as a global
+               join (select author_email,
+                            sum(total__lines)      as total_lines,
+                            sum(total__insertions) as total_insertions,
+                            sum(total__deletions)     total_deletions,
+                            sum(total__files)         total_files
+                     from gits
+                     where search_key__owner = 'microsoft'
+                       and search_key__repo = 'DeepSpeed'
+                       and if_merged = 0
+                     group by author_email) as b on a.author_email = b.author_email) where author__id != 0
+group by search_key__owner, search_key__repo, author__id, author__login, final_company_inferred_from_company, location       ,company
+order by commit_count desc) as a global
+         left join (select sum(total__lines) as repo_total_lines, sum(total__insertions) as repo_total_insertions,sum(total__deletions) repo_total_deletions,sum(total__files) repo_total_files
+                    from gits
+                    where search_key__owner = 'microsoft'
+                      and search_key__repo = 'DeepSpeed'
+    ) as b on 1 = 1
