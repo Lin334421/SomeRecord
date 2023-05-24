@@ -1040,3 +1040,160 @@ from (select argMax(module, update_at_timestamp) as module_,
       group by module, name, email)
                                            where splitByChar('@', email)[2] = 'xilinx.com'
                                               or email like '%xilinx%') group by email)
+                                              
+                                              
+                                              
+                                             
+                                             
+                                             
+                                             
+                                             
+                                             
+                                             
+                                             
+                                             
+                                             
+                                             
+                                             
+                                             
+                                             
+                                             
+                                             
+                                             
+                                             
+                                             
+                                             
+                                             
+                                             
+                                             
+                                             
+                                             
+                                             
+                                             
+                                             
+                                             
+                                             
+                                             
+                                             
+                                             
+                                             
+                                             
+                                             
+                                             
+                                             
+                                             
+                                             
+                                             
+                                             
+                                             
+            -- 中国厂商或大学                                 
+     select company as company_org_university, sum(commit_count) as total_commit_count,sum(total__insertions) total__insertions,sum(total__deletions) total__deletions,sum(total__lines) total__lines,sum(total__files) total__files
+from (select *
+      from (select splitByString('@', author_email)[2] as email_domain, count() as commit_count,sum(total__insertions) total__insertions,sum(total__deletions) total__deletions,sum(total__lines) total__lines,sum(total__files) total__files
+            from (select author_email,total__insertions,total__deletions,total__lines,total__files
+                  from gits
+                  where search_key__repo = 'linux'
+                    and search_key__owner = 'torvalds'
+                    and if_merged = 0
+                    and author_email global in (select email
+                                                from email_main_tz_map
+                                                where main_tz_area = '中国'
+                                                group by email))
+            group by email_domain
+            order by commit_count desc) as a global
+               join (select attr.1 as email_domain, attr.2 as company
+                     from (select arrayJoin([('huawei.com', '华为技术有限公司'),
+                         ('ascend.com.cn', '华为技术有限公司'),
+                         ('hisilicon.com', '华为技术有限公司'),
+                         ('kylinos.cn', '麒麟信息技术有限公司'),
+                         ('baidu.com', '百度公司'),
+                         ('bytedance.com', '字节跳动公司'),
+                         ('tencent.com', '腾讯公司'),
+                         ('alibaba-inc.com', '阿里巴巴集团'),
+                         ('didiglobal.com', '滴滴出行'),
+                         ('linux.alibaba.com', '阿里巴巴集团'),
+                         ('rock-chips.com', '瑞芯微电子'),
+                         ('trendmicro.com.cn', '趋势科技'),
+                         ('zte.com.cn', '中兴通讯股份有限公司'),
+                         ('vivo.com', 'vivo'),
+                         ('cmss.chinamobile.com', '中国移动通信集团公司'),
+                         ('jcrosoft.com', '金溪软件'),
+                         ('iscas.ac.cn', '中国科学院计算技术研究所'),
+                         ('amlogic.com', '安迅士半导体'),
+                         ('flygoat.com', '飞羊科技'),
+                         ('nfschina.com', '中国国家金融信息中心'),
+                         ('ucloud.cn', '优刻得'),
+                         ('meizu.com', '魅族科技'),
+                         ('synology.com', '群晖科技'),
+                         ('nuvoton.com', '新唐科技'),
+                         ('hisense.com', '海信集团'),
+                         ('zju.edu.cn', '浙江大学'),
+                         ('pku.edu.cn', '北京大学'),
+                         ('sjtu.edu.cn', '上海交通大学'),
+                         ('hhhn.com.cn', '湖南中医药大学'),
+                         ('mail.ustc.edu.cn', '中国科学技术大学'),
+                         ('whu.edu.cn', '武汉大学'),
+                         ('fudan.edu.cn', '复旦大学'),
+                         ('tsinghua.edu.cn', '清华大学'),
+                         ('ruc.edu.cn', '中国人民大学'),
+                         ('cduestc.edu.cn', '成都电子科技大学'),
+                         ('jmu.edu.cn', '佳木斯大学'),
+                         ('mprc.pku.edu.cn', '北京大学'),
+                         ('shanghaitech.edu.cn', '上海科技大学'),
+                         ('jmu.edu.cn', '佛山科学技术学院'),
+                         ('ss.pku.edu.cn', '北京大学'),
+                         ('mail.ustc.edu.cn', '中国科学技术大学'),
+                         ('cduestc.edu.cn', '电子科技大学成都学院'),
+                         ('cqu.edu.cn', '重庆大学'),
+                         ('bupt.edu.cn', '北京邮电大学'),
+                         ('nudt.edu.cn', '国防科技大学'),
+                         ('hust.edu.cn', '华中科技大学'),
+                         ('mail.scut.edu.cn', '华南理工大学'),
+                         ('ustc.edu', '中国科学技术大学'),
+                         ('buaa.edu.cn', '北京航空航天大学'),
+                         ('smail.nju.edu.cn', '南京大学'),
+                         ('csie.org', '中国科学院电子学会'),
+                         ('lenovo.com', '联想集团'),
+                         ('lenovogroup.com', '联想集团'),
+                         ('loongson.cn', '龙芯中科信息技术有限公司'),
+                         ('unisoc.com', '紫光展锐通信技术有限公司'),
+                         ('zhaoxin.com', '中芯国际集成电路制造有限公司'),
+                         ('taobao.com', '阿里巴巴集团'),
+                         ('amlogic.com', '深圳市安谋科技有限公司'),
+                         ('spreadtrum.com', '展讯通信股份有限公司'),
+                         ('c-sky.com', '杭州国芯科技有限公司'),
+                         ('wangsu.com', '网宿科技股份有限公司'),
+                         ('allwinnertech.com', '全志科技股份有限公司'),
+                         ('xiaomi.com', '小米科技有限责任公司'),
+                         ('h3c.com', '华三通信技术有限公司'),
+                         ('antgroup.com', '阿里巴巴集团'),
+                         ('oppo.com', 'OPPO移动通信有限公司'),
+                         ('coolpad.com', '酷派集团有限公司'),
+                         ('hygon.cn', '虹元科技有限公司'),
+                         ('hxt-semitech.com', '鸿信半导体股份有限公司'),
+                         ('chinatelecom.cn', '中国电信集团公司'),
+                         ('unisoc.cn', '紫光展锐通信技术有限公司'),
+                         ('mxic.com.tw', '旺宏电子股份有限公司'),
+                         ('inspur.com', '浪潮集团'),
+                         ('easystack.cn', '易极云'),
+                         ('moxa.com', '睿達科技股份有限公司'),
+                         ('daocloud.io', '道云科技（上海）有限公司'),
+                         ('pingcap.com', 'PingCAP'),
+                         ('bzhy.com', '北京智慧云科技有限公司'),
+                         ('ghostcloud.cn', '幽灵云'),
+                         ('yahoo.com.tw', '雅虎'),
+                         ('harmonycloud.cn', '谐云科技'),
+                         ('meituan.com', '美团点评'),
+                         ('wanda.cn', '万达集团'),
+                         ('primeton.com', '普元信息技术股份有限公司'),
+                         ('antfin.com', '阿里巴巴集团'),
+                         ('douyu.tv', '斗鱼'),
+                         ('kuaishou.com', '快手'),
+                         ('trip.com', '携程旅行网'),
+                         ('caicloud.io', '蔡云科技有限公司'),
+                         ('inspur.com', '浪潮集团'),
+                         ('alibaba-inc.com', '阿里巴巴集团'),
+                         ('qiniu.com', '七牛云'),
+                         ('alauda.io', '阿拉达'),
+                         ('tenxcloud.com', 'TenxCloud')]) as attr)) as b on a.email_domain = b.email_domain)
+group by company order by total_commit_count desc
