@@ -3235,3 +3235,46 @@ order by commit_count desc) as a global
                     where search_key__owner = 'microsoft'
                       and search_key__repo = 'DeepSpeed'
     ) as b on 1 = 1
+    
+    
+    
+    
+    
+ 
+ 
+ 
+ 
+ 通过邮箱找到github帐号关联的其他邮箱
+ select commit__author__email,commit__author__name from (select author__id, commit__author__email, commit__author__name
+from (select author__id, commit__author__email, commit__author__name
+      from github_commits
+      where search_key__owner = 'kubernetes'
+        and search_key__repo = 'kubernetes'
+        and commit__author__email not like '%users.noreply.github.com%'
+      group by author__id, commit__author__email, commit__author__name
+      union all
+
+      select committer__id, commit__committer__email, commit__committer__name
+      from github_commits
+      where search_key__owner = 'kubernetes'
+        and search_key__repo = 'kubernetes'
+        and commit__committer__email not like '%users.noreply.github.com%'
+      group by committer__id, commit__committer__email, commit__committer__name)
+group by author__id, commit__author__email, commit__author__name
+order by commit__author__name,commit__author__email) where author__id global in (select author__id from (select author__id, commit__author__email, commit__author__name
+from (select author__id, commit__author__email, commit__author__name
+      from github_commits
+      where search_key__owner = 'kubernetes'
+        and search_key__repo = 'kubernetes'
+        and commit__author__email not like '%users.noreply.github.com%'
+      group by author__id, commit__author__email, commit__author__name
+      union all
+
+      select committer__id, commit__committer__email, commit__committer__name
+      from github_commits
+      where search_key__owner = 'kubernetes'
+        and search_key__repo = 'kubernetes'
+        and commit__committer__email not like '%users.noreply.github.com%'
+      group by committer__id, commit__committer__email, commit__committer__name)
+group by author__id, commit__author__email, commit__author__name
+order by commit__author__name,commit__author__email) where commit__author__email = 'nickren19@gmail.com' and author__id !=0)
