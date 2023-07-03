@@ -3166,6 +3166,8 @@ order by commit_count desc, total_lines desc, total_insertions desc, total_delat
 
 
 --------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+这个查的是个人信息
 表头
 search_key__owner,search_key__repo,author__id,emails,areas,author__login,company,final_company_inferred_from_company,location,commit_count,total_lines,total_insertions,total_deletions,total_files,repo_total_lines,repo_total_insertions,repo_total_deletions,repo_total_files,lines_percentage(%),insertions_percentage(%),deletions_percentage(%),alter_files_percentage(%)
 
