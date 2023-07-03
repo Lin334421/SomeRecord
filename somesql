@@ -3192,7 +3192,7 @@ from (select search_key__owner,
        sum(total_insertions) total_insertions,
        sum(total_deletions) total_deletions,
        sum(total_files) total_files
-from (select a.*, b.total_lines, b.total_insertions, b.total_deletions, b.total_files
+from (select * from (select a.*, b.total_lines, b.total_insertions, b.total_deletions, b.total_files
       from (select *
             from (select *
                   from (select a.*, b.final_company_inferred_from_company, location,company
@@ -3203,13 +3203,13 @@ from (select a.*, b.total_lines, b.total_insertions, b.total_deletions, b.total_
                                                  author_email,
                                                  count() as commit_count
                                           from gits
-                                          where if_merged = 0
-                                            and search_key__owner = 'microsoft'
-                                            and search_key__repo = 'DeepSpeed'
+                                          where length(parents)==1
+                                            and search_key__owner = 'huggingface'
+                                            and search_key__repo = 'transformers'
                                             and author_email != ''
                                             and author_email not like '%[bot]%'
                                           group by search_key__owner, search_key__repo, author_email) as a global
-                                             join (select * from email_main_tz_map ) as b
+                                             join (select email,argMax(top_n_tz_area,update_at_timestamp) as top_n_tz_area  from email_main_tz_map group by email) as b
                                                   on a.author_email = b.email
                                     order by search_key__owner, search_key__repo, commit_count desc) as a global
                                        left join (select commit__author__email, author__id, author__login
@@ -3226,16 +3226,16 @@ from (select a.*, b.total_lines, b.total_insertions, b.total_deletions, b.total_
                             sum(total__deletions)     total_deletions,
                             sum(total__files)         total_files
                      from gits
-                     where search_key__owner = 'microsoft'
-                       and search_key__repo = 'DeepSpeed'
-                       and if_merged = 0
-                     group by author_email) as b on a.author_email = b.author_email) where author__id != 0
-group by search_key__owner, search_key__repo, author__id, author__login, final_company_inferred_from_company, location       ,company
+                     where search_key__owner = 'huggingface'
+                       and search_key__repo = 'transformers'
+                       and length(parents)==1
+                     group by author_email) as b on a.author_email = b.author_email)) where author__id != 0
+group by search_key__owner, search_key__repo, author__id, author__login, final_company_inferred_from_company, location   ,company
 order by commit_count desc) as a global
          left join (select sum(total__lines) as repo_total_lines, sum(total__insertions) as repo_total_insertions,sum(total__deletions) repo_total_deletions,sum(total__files) repo_total_files
                     from gits
-                    where search_key__owner = 'microsoft'
-                      and search_key__repo = 'DeepSpeed'
+                    where search_key__owner = 'huggingface'
+                      and search_key__repo = 'transformers'
     ) as b on 1 = 1
     
     
