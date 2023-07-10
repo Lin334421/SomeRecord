@@ -3360,6 +3360,7 @@ from (select *
                                                         and search_key__repo != 'rust-gha'
                                                         and length(parents) == 1
                                                         and author_email != ''
+                                                      and author_email not like '%[bot]%'
                                                       group by author_email) as b
                                                      on a.author_email = b.author_email and a.authored_date <= end_at)
                            group by author_email, search_key__owner, search_key__repo, start_at, end_at
