@@ -3280,3 +3280,97 @@ from (select author__id, commit__author__email, commit__author__name
       group by committer__id, commit__committer__email, commit__committer__name)
 group by author__id, commit__author__email, commit__author__name
 order by commit__author__name,commit__author__email) where commit__author__email = 'nickren19@gmail.com' and author__id !=0)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+---------------------------------------------------------------------------------------------
+
+开发者在加入社区第一年，同行的平均贡献强度
+select search_key__owner,
+       search_key__repo,
+       dep_author_email,
+       start_at,
+       count()                               as commit_count,
+       count(distinct all_author_email)      as author_count,
+       round(commit_count / author_count, 2) as average_fix_intensity
+from (select *
+      from (select a.search_key__owner,
+                   a.search_key__repo,
+                   a.author_email as all_author_email,
+                   a.authored_date,
+                   b.author_email as dep_author_email,
+                   b.commit_count,
+                   b.start_at,
+                   b.end_at
+            from (select *
+                  from gits
+                  where search_key__owner = 'rust-lang'
+                    and search_key__repo != 'llvm-project'
+                    and search_key__repo != 'llvm'
+                    and search_key__repo != 'rust-gha'
+                    and length(parents) == 1
+                    and author_email != '') as a global
+                     JOIN (select author_email,
+                                  search_key__owner,
+                                  search_key__repo,
+                                  start_at,
+                                  end_at,
+                                  count() as commit_count,
+                                  ln(commit_count + 1)
+                           from (select search_key__owner, search_key__repo, author_email, authored_date, b.*
+                                 from (select *
+                                       from gits
+                                       where search_key__owner = 'rust-lang'
+                                         and search_key__repo != 'llvm-project'
+                                         and search_key__repo != 'llvm'
+                                         and search_key__repo != 'rust-gha'
+                                         and length(parents) == 1
+                                         and author_email != '') as a global ASOF
+                                          inner JOIN (select author_email,
+                                                             min(authored_date)          as start_at,
+                                                             subtractYears(start_at, -1) as end_at
+                                                      from gits
+                                                      where search_key__owner = 'rust-lang'
+                                                        and search_key__repo != 'llvm-project'
+                                                        and search_key__repo != 'llvm'
+                                                        and search_key__repo != 'rust-gha'
+                                                        and length(parents) == 1
+                                                        and author_email != ''
+                                                      group by author_email) as b
+                                                     on a.author_email = b.author_email and a.authored_date <= end_at)
+                           group by author_email, search_key__owner, search_key__repo, start_at, end_at
+                           having commit_count > 5
+                           order by author_email, start_at, commit_count desc
+                           limit 1 by author_email) as b
+                          on a.search_key__owner = b.search_key__owner and
+                             a.search_key__repo = b.search_key__repo)
+      where authored_date >= start_at
+        and authored_date <= end_at
+        and all_author_email != dep_author_email
+        and all_author_email not like '%[bot]%'
+      order by start_at)
+group by search_key__owner, search_key__repo, dep_author_email, start_at
