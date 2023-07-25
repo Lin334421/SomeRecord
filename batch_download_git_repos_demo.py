@@ -1,5 +1,5 @@
 import requests
-
+# 批量下载项目
 SERVER_URL = ""
 git_repo_urls = []
 
