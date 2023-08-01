@@ -8,3 +8,5 @@ for repo_url in git_repo_urls:
     print(res.status_code, repo_url)
     if res.status_code != 200:
         print('Failed to create job for', repo_url, res.text)
+# https_proxy= http_proxy= python batch_download_git_repos_demo.py
+# 不需要使用代理
