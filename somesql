@@ -3761,3 +3761,313 @@ from (select *
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+-- 两个项目之间共同的开发者
+
+-- 找到llvm pytorch 和rust三个项目之间，两者之间或者三者之间是否有开发者交叉贡献
+select a.*,b.new_login from (select * from (select a.*, tz_commit_count_map
+from (select a.*, month_commit_count, commit_month_count
+      from (select search_key__owner,
+                   search_key__repo,
+                   author__id,
+                   groupArray(author_email) as emails,
+                   sum(lines)               as lines,
+                   sum(insertions)          as insertions,
+                   sum(deletions)           as deletions,
+                   sum(files)               as files,
+                   sum(commit_count)        as commit_count
+            from (select search_key__owner,
+                         search_key__repo,
+                         author__id,
+                         author_email,
+                         sum(total__lines)      as lines,
+                         sum(total__insertions) as insertions,
+                         sum(total__deletions)  as deletions,
+                         sum(total__files)      as files,
+                         count()                as commit_count
+                  from (select search_key__owner,
+                               search_key__repo,
+                               author__id,
+                               author_name,
+                               author_email,
+                               authored_date,
+                               author_tz,
+                               email_domain,
+                               total__lines,
+                               total__insertions,
+                               total__deletions,
+                               total__files
+                        from (select a.*, b.author__id
+                              from (select *, splitByChar('@', author_email)[2] as email_domain
+                                    from gits
+                                    where search_key__owner = 'rust-lang'
+                                      and search_key__repo = 'rust'
+                                      and length(parents) == 1) as a
+                                       -- 这里使用global join 产生的效果是只显示能对得出账号的commit数据
+                                       global
+                                       join (select commit__author__email, author__id
+                                             from github_commits
+                                    where search_key__owner = 'rust-lang'
+                                      and search_key__repo = 'rust'
+                                               and author__id != 0
+                                             group by commit__author__email, author__id) as b
+                                            on
+                                                a.author_email = b.commit__author__email)
+                        order by author__id, authored_date)
+                  group by search_key__owner, search_key__repo, author__id, author_email)
+            group by search_key__owner, search_key__repo, author__id) as a global
+               join (select search_key__owner,
+                            search_key__repo,
+                            author__id,
+                            count()                                 as commit_month_count,
+                            groupArray((month, month_commit_count)) as month_commit_count
+                     from (select search_key__owner,
+                                  search_key__repo,
+                                  author__id,
+                                  toYYYYMM(authored_date) as month,
+                                  count()                 as month_commit_count
+                           from (select search_key__owner,
+                                        search_key__repo,
+                                        author__id,
+                                        author_name,
+                                        author_email,
+                                        authored_date,
+                                        author_tz,
+                                        email_domain,
+                                        total__lines,
+                                        total__insertions,
+                                        total__deletions,
+                                        total__files
+                                 from (select a.*, b.author__id
+                                       from (select *, splitByChar('@', author_email)[2] as email_domain
+                                             from gits
+                                    where search_key__owner = 'rust-lang'
+                                      and search_key__repo = 'rust'
+                                               and length(parents) == 1) as a
+                                                -- 这里使用global join 产生的效果是只显示能对得出账号的commit数据
+                                                global
+                                                join (select commit__author__email, author__id
+                                                      from github_commits
+                                    where search_key__owner = 'rust-lang'
+                                      and search_key__repo = 'rust'
+                                                        and author__id != 0
+                                                      group by commit__author__email, author__id) as b
+                                                     on
+                                                         a.author_email = b.commit__author__email)
+                                 order by author__id, authored_date)
+                           group by search_key__owner, search_key__repo, author__id, month
+                           order by author__id, month)
+                     group by search_key__owner, search_key__repo, author__id) as b
+                    on a.search_key__owner = b.search_key__owner and
+                       a.search_key__repo = b.search_key__repo and
+                       a.author__id = b.author__id) as a global
+         join (select search_key__owner,
+                      search_key__repo,
+                      author__id,
+                      groupArray((author_tz, tz_commit_count)) tz_commit_count_map
+               from (select search_key__owner,
+                            search_key__repo,
+                            author__id,
+                            author_tz,
+                            count() as tz_commit_count
+                     from (select search_key__owner,
+                                  search_key__repo,
+                                  author__id,
+                                  author_name,
+                                  author_email,
+                                  authored_date,
+                                  author_tz,
+                                  email_domain,
+                                  total__lines,
+                                  total__insertions,
+                                  total__deletions,
+                                  total__files
+                           from (select a.*, b.author__id
+                                 from (select *, splitByChar('@', author_email)[2] as email_domain
+                                       from gits
+                                    where search_key__owner = 'rust-lang'
+                                      and search_key__repo = 'rust'
+                                         and length(parents) == 1) as a
+                                          -- 这里使用global join 产生的效果是只显示能对得出账号的commit数据
+                                          global
+                                          join (select commit__author__email, author__id
+                                                from github_commits
+                                    where search_key__owner = 'rust-lang'
+                                      and search_key__repo = 'rust'
+                                                  and author__id != 0
+                                                group by commit__author__email, author__id) as b
+                                               on
+                                                   a.author_email = b.commit__author__email)
+                           order by author__id, authored_date)
+                     group by search_key__owner, search_key__repo, author__id, author_tz
+                     order by author__id, tz_commit_count desc)
+               group by search_key__owner, search_key__repo, author__id) as b
+              on a.author__id = b.author__id and a.search_key__owner = b.search_key__owner and
+                 a.search_key__repo = b.search_key__repo) as a global join
+    (select a.*, tz_commit_count_map
+from (select a.*, month_commit_count, commit_month_count
+      from (select search_key__owner,
+                   search_key__repo,
+                   author__id,
+                   groupArray(author_email) as emails,
+                   sum(lines)               as lines,
+                   sum(insertions)          as insertions,
+                   sum(deletions)           as deletions,
+                   sum(files)               as files,
+                   sum(commit_count)        as commit_count
+            from (select search_key__owner,
+                         search_key__repo,
+                         author__id,
+                         author_email,
+                         sum(total__lines)      as lines,
+                         sum(total__insertions) as insertions,
+                         sum(total__deletions)  as deletions,
+                         sum(total__files)      as files,
+                         count()                as commit_count
+                  from (select search_key__owner,
+                               search_key__repo,
+                               author__id,
+                               author_name,
+                               author_email,
+                               authored_date,
+                               author_tz,
+                               email_domain,
+                               total__lines,
+                               total__insertions,
+                               total__deletions,
+                               total__files
+                        from (select a.*, b.author__id
+                              from (select *, splitByChar('@', author_email)[2] as email_domain
+                                    from gits
+                                    where search_key__owner = 'llvm'
+                                      and search_key__repo = 'llvm-project'
+                                      and length(parents) == 1) as a
+                                       -- 这里使用global join 产生的效果是只显示能对得出账号的commit数据
+                                       global
+                                       join (select commit__author__email, author__id
+                                             from github_commits
+                                    where search_key__owner = 'llvm'
+                                      and search_key__repo = 'llvm-project'
+                                               and author__id != 0
+                                             group by commit__author__email, author__id) as b
+                                            on
+                                                a.author_email = b.commit__author__email)
+                        order by author__id, authored_date)
+                  group by search_key__owner, search_key__repo, author__id, author_email)
+            group by search_key__owner, search_key__repo, author__id) as a global
+               join (select search_key__owner,
+                            search_key__repo,
+                            author__id,
+                            count()                                 as commit_month_count,
+                            groupArray((month, month_commit_count)) as month_commit_count
+                     from (select search_key__owner,
+                                  search_key__repo,
+                                  author__id,
+                                  toYYYYMM(authored_date) as month,
+                                  count()                 as month_commit_count
+                           from (select search_key__owner,
+                                        search_key__repo,
+                                        author__id,
+                                        author_name,
+                                        author_email,
+                                        authored_date,
+                                        author_tz,
+                                        email_domain,
+                                        total__lines,
+                                        total__insertions,
+                                        total__deletions,
+                                        total__files
+                                 from (select a.*, b.author__id
+                                       from (select *, splitByChar('@', author_email)[2] as email_domain
+                                             from gits
+                                    where search_key__owner = 'llvm'
+                                      and search_key__repo = 'llvm-project'
+                                               and length(parents) == 1) as a
+                                                -- 这里使用global join 产生的效果是只显示能对得出账号的commit数据
+                                                global
+                                                join (select commit__author__email, author__id
+                                                      from github_commits
+                                    where search_key__owner = 'llvm'
+                                      and search_key__repo = 'llvm-project'
+                                                        and author__id != 0
+                                                      group by commit__author__email, author__id) as b
+                                                     on
+                                                         a.author_email = b.commit__author__email)
+                                 order by author__id, authored_date)
+                           group by search_key__owner, search_key__repo, author__id, month
+                           order by author__id, month)
+                     group by search_key__owner, search_key__repo, author__id) as b
+                    on a.search_key__owner = b.search_key__owner and
+                       a.search_key__repo = b.search_key__repo and
+                       a.author__id = b.author__id) as a global
+         join (select search_key__owner,
+                      search_key__repo,
+                      author__id,
+                      groupArray((author_tz, tz_commit_count)) tz_commit_count_map
+               from (select search_key__owner,
+                            search_key__repo,
+                            author__id,
+                            author_tz,
+                            count() as tz_commit_count
+                     from (select search_key__owner,
+                                  search_key__repo,
+                                  author__id,
+                                  author_name,
+                                  author_email,
+                                  authored_date,
+                                  author_tz,
+                                  email_domain,
+                                  total__lines,
+                                  total__insertions,
+                                  total__deletions,
+                                  total__files
+                           from (select a.*, b.author__id
+                                 from (select *, splitByChar('@', author_email)[2] as email_domain
+                                       from gits
+                                    where search_key__owner = 'llvm'
+                                      and search_key__repo = 'llvm-project'
+                                         and length(parents) == 1) as a
+                                          -- 这里使用global join 产生的效果是只显示能对得出账号的commit数据
+                                          global
+                                          join (select commit__author__email, author__id
+                                                from github_commits
+                                    where search_key__owner = 'llvm'
+                                      and search_key__repo = 'llvm-project'
+                                                  and author__id != 0
+                                                group by commit__author__email, author__id) as b
+                                               on
+                                                   a.author_email = b.commit__author__email)
+                           order by author__id, authored_date)
+                     group by search_key__owner, search_key__repo, author__id, author_tz
+                     order by author__id, tz_commit_count desc)
+               group by search_key__owner, search_key__repo, author__id) as b
+              on a.author__id = b.author__id and a.search_key__owner = b.search_key__owner and
+                 a.search_key__repo = b.search_key__repo) as b on a.author__id = b.author__id) as a global join (select author__id,
+       argMax(author__login, commit__author__date) as new_login
+from github_commits
+group by author__id) as b on a.author__id = b.author__id
+
+
+
+
+
+
+
+
