@@ -3375,3 +3375,389 @@ from (select *
         and all_author_email not like '%[bot]%'
       order by start_at)
 group by search_key__owner, search_key__repo, dep_author_email, start_at
+
+
+
+
+
+
+
+
+-- 中国开发者的贡献时间线还有整体的贡献
+
+select new_login,
+       search_key__owner,
+       search_key__repo,
+       author__id,
+       author_name,
+       author_email,
+       authored_date,
+       author_tz,
+       email_domain,
+       emails,
+       lines,
+       insertions,
+       deletions,
+       files,
+       commit_count,
+       month_commit_count,
+       commit_month_count,
+       tz_commit_count_map,
+       company,
+       final_company_inferred_from_company,
+       location,
+       inferred_from_location__country,
+       blog
+from (select *
+      from (-- llvm 与中国沾边的所有开发着贡献时间线
+               select new_login, a.*
+               from (select search_key__owner,
+                            search_key__repo,
+                            author__id,
+                            author_name,
+                            author_email,
+                            authored_date,
+                            author_tz,
+                            email_domain
+                     from (select a.*, b.author__id
+                           from (select *, splitByChar('@', author_email)[2] as email_domain
+                                 from gits
+                                 where search_key__repo = '{owner}'
+                                   and search_key__repo = '{repo}'
+                                   and length(parents) == 1) as a
+                                    -- 这里使用global join 产生的效果是只显示能对得出账号的commit数据
+                                    global
+                                    join (select commit__author__email, author__id
+                                          from github_commits
+                                          where search_key__repo = '{owner}'
+                                            and search_key__repo = '{repo}'
+                                            and author__id != 0
+                                          group by commit__author__email, author__id) as b on
+                               a.author_email = b.commit__author__email)
+                     where author__id global in (-- 与中国沾边的id
+                         select author__id
+                         from (select a.*, b.inferred_from_location__country
+                               from (select a.*, b.author__id
+                                     from (select *, splitByChar('@', author_email)[2] as email_domain
+                                           from gits
+                                           where search_key__repo = '{owner}'
+                                             and search_key__repo = '{repo}'
+                                             and length(parents) == 1) as a global
+                                              join (select commit__author__email, author__id
+                                                    from github_commits
+                                                    where search_key__repo = '{owner}'
+                                                      and search_key__repo = '{repo}'
+                                                      and author__id != 0
+                                                    group by commit__author__email, author__id) as b on
+                                         a.author_email = b.commit__author__email) as a global
+                                        left join (select id, inferred_from_location__country, location
+                                                   from github_profile
+                                                   where github_profile.inferred_from_location__country = 'China') as b
+                                                  on a.author__id = b.id)
+                         where inferred_from_location__country != ''
+                            or author_tz = 8
+                            or email_domain global in ('baidu.com',
+                                                       '163.com',
+                                                       '126.com',
+                                                       'qq.com',
+                                                       'bytedance.com',
+                                                       'huawei.com',
+                                                       'xiaomi.com',
+                                                       'alibaba-inc.com',
+                                                       'linux.alibaba.com',
+                                                       'alibaba.com',
+                                                       'bytedance.com',
+                                                       'streamcomputing.com',
+                                                       'loongson.cn',
+                                                       'iscas.ac.cn',
+                                                       'tencent.com')
+                            or email_domain like '%.cn'
+
+                         group by author__id)
+                     order by author__id, authored_date) as a global
+                        left join (select search_key__owner,
+                                          search_key__repo,
+                                          author__id,
+                                          argMax(author__login, commit__author__date) as new_login
+                                   from github_commits
+                                   where search_key__repo = '{owner}'
+                                     and search_key__repo = '{repo}'
+                                   group by search_key__owner, search_key__repo, author__id) as b
+                                  on a.author__id = b.author__id and a.search_key__owner = b.search_key__owner and
+                                     a.search_key__repo = b.search_key__repo) as a global
+               left join (select a.*, tz_commit_count_map
+                          from (select a.*, month_commit_count, commit_month_count
+                                from (select search_key__owner,
+                                             search_key__repo,
+                                             author__id,
+                                             groupArray(author_email) as emails,
+                                             sum(lines)               as lines,
+                                             sum(insertions)          as insertions,
+                                             sum(deletions)           as deletions,
+                                             sum(files)               as files,
+                                             sum(commit_count)        as commit_count
+                                      from (select search_key__owner,
+                                                   search_key__repo,
+                                                   author__id,
+                                                   author_email,
+                                                   sum(total__lines)      as lines,
+                                                   sum(total__insertions) as insertions,
+                                                   sum(total__deletions)  as deletions,
+                                                   sum(total__files)      as files,
+                                                   count()                as commit_count
+                                            from (select search_key__owner,
+                                                         search_key__repo,
+                                                         author__id,
+                                                         author_name,
+                                                         author_email,
+                                                         authored_date,
+                                                         author_tz,
+                                                         email_domain,
+                                                         total__lines,
+                                                         total__insertions,
+                                                         total__deletions,
+                                                         total__files
+                                                  from (select a.*, b.author__id
+                                                        from (select *, splitByChar('@', author_email)[2] as email_domain
+                                                              from gits
+                                                              where search_key__repo = '{owner}'
+                                                                and search_key__repo = '{repo}'
+                                                                and length(parents) == 1) as a
+                                                                 -- 这里使用global join 产生的效果是只显示能对得出账号的commit数据
+                                                                 global
+                                                                 join (select commit__author__email, author__id
+                                                                       from github_commits
+                                                                       where search_key__repo = '{owner}'
+                                                                         and search_key__repo = '{repo}'
+                                                                         and author__id != 0
+                                                                       group by commit__author__email, author__id) as b
+                                                                      on
+                                                                          a.author_email = b.commit__author__email)
+                                                  where author__id global in (-- 与中国沾边的id
+                                                      select author__id
+                                                      from (select a.*, b.inferred_from_location__country
+                                                            from (select a.*, b.author__id
+                                                                  from (select *, splitByChar('@', author_email)[2] as email_domain
+                                                                        from gits
+                                                                        where search_key__repo = '{owner}'
+                                                                          and search_key__repo = '{repo}'
+                                                                          and length(parents) == 1) as a global
+                                                                           join (select commit__author__email, author__id
+                                                                                 from github_commits
+                                                                                 where search_key__repo = '{owner}'
+                                                                                   and search_key__repo = '{repo}'
+                                                                                   and author__id != 0
+                                                                                 group by commit__author__email, author__id) as b
+                                                                                on
+                                                                                    a.author_email = b.commit__author__email) as a global
+                                                                     left join (select id, inferred_from_location__country, location
+                                                                                from github_profile
+                                                                                where github_profile.inferred_from_location__country = 'China') as b
+                                                                               on a.author__id = b.id)
+                                                      where inferred_from_location__country != ''
+                                                         or author_tz = 8
+                                                         or email_domain global in ('baidu.com',
+                                                                                    '163.com',
+                                                                                    '126.com',
+                                                                                    'qq.com',
+                                                                                    'bytedance.com',
+                                                                                    'huawei.com',
+                                                                                    'xiaomi.com',
+                                                                                    'alibaba-inc.com',
+                                                                                    'linux.alibaba.com',
+                                                                                    'alibaba.com',
+                                                                                    'bytedance.com',
+                                                                                    'streamcomputing.com',
+                                                                                    'loongson.cn',
+                                                                                    'iscas.ac.cn',
+                                                                                    'tencent.com')
+                                                         or email_domain like '%.cn'
+
+                                                      group by author__id)
+                                                  order by author__id, authored_date)
+                                            group by search_key__owner, search_key__repo, author__id, author_email)
+                                      group by search_key__owner, search_key__repo, author__id) as a global
+                                         join (select search_key__owner,
+                                                      search_key__repo,
+                                                      author__id,
+                                                      count()                                 as commit_month_count,
+                                                      groupArray((month, month_commit_count)) as month_commit_count
+                                               from (select search_key__owner,
+                                                            search_key__repo,
+                                                            author__id,
+                                                            toYYYYMM(authored_date) as month,
+                                                            count()                 as month_commit_count
+                                                     from (select search_key__owner,
+                                                                  search_key__repo,
+                                                                  author__id,
+                                                                  author_name,
+                                                                  author_email,
+                                                                  authored_date,
+                                                                  author_tz,
+                                                                  email_domain,
+                                                                  total__lines,
+                                                                  total__insertions,
+                                                                  total__deletions,
+                                                                  total__files
+                                                           from (select a.*, b.author__id
+                                                                 from (select *, splitByChar('@', author_email)[2] as email_domain
+                                                                       from gits
+                                                                       where search_key__repo = '{owner}'
+                                                                         and search_key__repo = '{repo}'
+                                                                         and length(parents) == 1) as a
+                                                                          -- 这里使用global join 产生的效果是只显示能对得出账号的commit数据
+                                                                          global
+                                                                          join (select commit__author__email, author__id
+                                                                                from github_commits
+                                                                                where search_key__repo = '{owner}'
+                                                                                  and search_key__repo = '{repo}'
+                                                                                  and author__id != 0
+                                                                                group by commit__author__email, author__id) as b
+                                                                               on
+                                                                                   a.author_email = b.commit__author__email)
+                                                           where author__id global in (-- 与中国沾边的id
+                                                               select author__id
+                                                               from (select a.*, b.inferred_from_location__country
+                                                                     from (select a.*, b.author__id
+                                                                           from (select *, splitByChar('@', author_email)[2] as email_domain
+                                                                                 from gits
+                                                                                 where search_key__repo = '{owner}'
+                                                                                   and search_key__repo = '{repo}'
+                                                                                   and length(parents) == 1) as a global
+                                                                                    join (select commit__author__email, author__id
+                                                                                          from github_commits
+                                                                                          where search_key__repo = '{owner}'
+                                                                                            and search_key__repo = '{repo}'
+                                                                                            and author__id != 0
+                                                                                          group by commit__author__email, author__id) as b
+                                                                                         on
+                                                                                             a.author_email = b.commit__author__email) as a global
+                                                                              left join (select id, inferred_from_location__country, location
+                                                                                         from github_profile
+                                                                                         where github_profile.inferred_from_location__country = 'China') as b
+                                                                                        on a.author__id = b.id)
+                                                               where inferred_from_location__country != ''
+                                                                  or author_tz = 8
+                                                                  or email_domain global in ('baidu.com',
+                                                                                             '163.com',
+                                                                                             '126.com',
+                                                                                             'qq.com',
+                                                                                             'bytedance.com',
+                                                                                             'huawei.com',
+                                                                                             'xiaomi.com',
+                                                                                             'alibaba-inc.com',
+                                                                                             'linux.alibaba.com',
+                                                                                             'alibaba.com',
+                                                                                             'bytedance.com',
+                                                                                             'streamcomputing.com',
+                                                                                             'loongson.cn',
+                                                                                             'iscas.ac.cn',
+                                                                                             'tencent.com')
+                                                                  or email_domain like '%.cn'
+
+                                                               group by author__id)
+                                                           order by author__id, authored_date)
+                                                     group by search_key__owner, search_key__repo, author__id, month
+                                                     order by author__id, month)
+                                               group by search_key__owner, search_key__repo, author__id) as b
+                                              on a.search_key__owner = b.search_key__owner and
+                                                 a.search_key__repo = b.search_key__repo and
+                                                 a.author__id = b.author__id) as a global
+                                   join (select search_key__owner,
+                                                search_key__repo,
+                                                author__id,
+                                                groupArray((author_tz, tz_commit_count)) tz_commit_count_map
+                                         from (select search_key__owner,
+                                                      search_key__repo,
+                                                      author__id,
+                                                      author_tz,
+                                                      count() as tz_commit_count
+                                               from (select search_key__owner,
+                                                            search_key__repo,
+                                                            author__id,
+                                                            author_name,
+                                                            author_email,
+                                                            authored_date,
+                                                            author_tz,
+                                                            email_domain,
+                                                            total__lines,
+                                                            total__insertions,
+                                                            total__deletions,
+                                                            total__files
+                                                     from (select a.*, b.author__id
+                                                           from (select *, splitByChar('@', author_email)[2] as email_domain
+                                                                 from gits
+                                                                 where search_key__repo = '{owner}'
+                                                                   and search_key__repo = '{repo}'
+                                                                   and length(parents) == 1) as a
+                                                                    -- 这里使用global join 产生的效果是只显示能对得出账号的commit数据
+                                                                    global
+                                                                    join (select commit__author__email, author__id
+                                                                          from github_commits
+                                                                          where search_key__repo = '{owner}'
+                                                                            and search_key__repo = '{repo}'
+                                                                            and author__id != 0
+                                                                          group by commit__author__email, author__id) as b
+                                                                         on
+                                                                             a.author_email = b.commit__author__email)
+                                                     where author__id global in (-- 与中国沾边的id
+                                                         select author__id
+                                                         from (select a.*, b.inferred_from_location__country
+                                                               from (select a.*, b.author__id
+                                                                     from (select *, splitByChar('@', author_email)[2] as email_domain
+                                                                           from gits
+                                                                           where search_key__repo = '{owner}'
+                                                                             and search_key__repo = '{repo}'
+                                                                             and length(parents) == 1) as a global
+                                                                              join (select commit__author__email, author__id
+                                                                                    from github_commits
+                                                                                    where search_key__repo = '{owner}'
+                                                                                      and search_key__repo = '{repo}'
+                                                                                      and author__id != 0
+                                                                                    group by commit__author__email, author__id) as b
+                                                                                   on
+                                                                                       a.author_email = b.commit__author__email) as a global
+                                                                        left join (select id, inferred_from_location__country, location
+                                                                                   from github_profile
+                                                                                   where github_profile.inferred_from_location__country = 'China') as b
+                                                                                  on a.author__id = b.id)
+                                                         where inferred_from_location__country != ''
+                                                            or author_tz = 8
+                                                            or email_domain global in ('baidu.com',
+                                                                                       '163.com',
+                                                                                       '126.com',
+                                                                                       'qq.com',
+                                                                                       'bytedance.com',
+                                                                                       'huawei.com',
+                                                                                       'xiaomi.com',
+                                                                                       'alibaba-inc.com',
+                                                                                       'linux.alibaba.com',
+                                                                                       'alibaba.com',
+                                                                                       'bytedance.com',
+                                                                                       'streamcomputing.com',
+                                                                                       'loongson.cn',
+                                                                                       'iscas.ac.cn',
+                                                                                       'tencent.com')
+                                                            or email_domain like '%.cn'
+                                                         group by search_key__owner, search_key__repo, author__id)
+                                                     order by author__id, authored_date)
+                                               group by search_key__owner, search_key__repo, author__id, author_tz
+                                               order by author__id, tz_commit_count desc)
+                                         group by search_key__owner, search_key__repo, author__id) as b
+                                        on a.author__id = b.author__id and a.search_key__owner = b.search_key__owner and
+                                           a.search_key__repo = b.search_key__repo) as b
+                         on a.author__id = b.author__id and a.search_key__owner = b.search_key__owner and
+                            a.search_key__repo = b.search_key__repo
+      order by author__id, authored_date) as a global
+         left join (select id,
+                           company,
+                           final_company_inferred_from_company,
+                           location,
+                           inferred_from_location__country,
+                           blog
+                    from github_profile) as b on a.author__id = b.id;
+
+
+
+
+
