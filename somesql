@@ -4101,3 +4101,81 @@ from (select id, groupArray(email) as emails
          right join (select id, login, name, blog from github_profile where blog like '%linkedin%') as b on a.id = b.id
 
 
+
+
+-- 筛选明星项目相关的其他项目
+
+
+
+select a.*, b.pr_merge_count as repo_total_pr_merge_count
+from (select payload__pull_request__base__repo__html_url,
+             count()       as actor_count,
+             sum(pr_count) as pr_count_in_refer_repo
+      from (
+               --贡献过llvm 代码的 github id 相关的gha中所有提过pr的项目，以及明星项目开发者对该项目被merge的次数
+               select payload__pull_request__base__repo__html_url, actor__id, count() as pr_count
+               from pull_request_event
+               where actor__id global in (select id
+                                          from (select author__id as id
+                                                from github_commits
+                                                where search_key__owner = 'llvm'
+                                                  and search_key__repo = 'llvm-project'
+                                                  and author__id != 0
+                                                group by author__id
+                                                union all
+                                                select committer__id as id
+                                                from github_commits
+                                                where search_key__owner = 'llvm'
+                                                  and search_key__repo = 'llvm-project'
+                                                  and committer__id != 0
+                                                group by committer__id)
+                                          group by id)
+                 and payload__pull_request__merged = 1
+               group by payload__pull_request__base__repo__html_url, actor__id
+               order by actor__id, pr_count desc)
+      group by payload__pull_request__base__repo__html_url
+      having actor_count > 1
+         and pr_count_in_refer_repo > 1
+      order by actor_count desc, pr_count_in_refer_repo desc) as a global
+         left join (select payload__pull_request__base__repo__html_url, count() as pr_merge_count
+                    from pull_request_event
+                    where payload__pull_request__base__repo__html_url global in
+                          (-- 把贡献过明星项目的开发者所贡献的其他项目地址获取（pr被merge大于一次的）
+                              select payload__pull_request__base__repo__html_url
+                              from (select payload__pull_request__base__repo__html_url,
+                                           count()       as actor_count,
+                                           sum(pr_count) as total_pr_count
+                                    from (select payload__pull_request__base__repo__html_url,
+                                                 actor__id,
+                                                 count() as pr_count
+                                          from pull_request_event
+                                          where actor__id global in (select id
+                                                                     from (select author__id as id
+                                                                           from github_commits
+                                                                           where search_key__owner = 'llvm'
+                                                                             and search_key__repo = 'llvm-project'
+                                                                             and author__id != 0
+                                                                           group by author__id
+                                                                           union all
+                                                                           select committer__id as id
+                                                                           from github_commits
+                                                                           where search_key__owner = 'llvm'
+                                                                             and search_key__repo = 'llvm-project'
+                                                                             and committer__id != 0
+                                                                           group by committer__id)
+                                                                     group by id)
+                                            and payload__pull_request__merged = 1
+                                          group by payload__pull_request__base__repo__html_url, actor__id
+                                          order by actor__id, pr_count desc)
+                                    group by payload__pull_request__base__repo__html_url
+                                    having total_pr_count > 1
+                                    order by actor_count desc, total_pr_count desc))
+                      and payload__pull_request__merged = 1
+                    group by payload__pull_request__base__repo__html_url
+                    order by pr_merge_count desc
+    ) as b on a.payload__pull_request__base__repo__html_url = b.payload__pull_request__base__repo__html_url
+where repo_total_pr_merge_count >= 20
+  and pr_count_in_refer_repo >= 5
+order by pr_count_in_refer_repo desc
+
+
