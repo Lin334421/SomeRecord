@@ -4071,3 +4071,33 @@ group by author__id) as b on a.author__id = b.author__id
 
 
 
+
+--- github profile linkedin
+
+
+
+select emails, b.*
+from (select id, groupArray(email) as emails
+      from (select id, email
+            from (select author__id as id, commit__author__email as email
+                  from github_commits
+                  where author__id != 0
+                    and commit__author__email not like '%users.noreply.github.com'
+                  group by author__id, commit__author__email
+                  union all
+                  select committer__id, commit__committer__email
+                  from github_commits
+                  where committer__id != 0
+                    and commit__committer__email not like '%users.noreply.github.com'
+                  group by committer__id, commit__committer__email
+                  union all
+                  select id, email
+                  from github_profile
+                  where email != ''
+                  group by id, email
+                     )
+            group by id, email)
+      group by id) as a global
+         right join (select id, login, name, blog from github_profile where blog like '%linkedin%') as b on a.id = b.id
+
+
