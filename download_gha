@@ -1,6 +1,7 @@
 import requests
 import json
 import threading
+import calendar
 
 def download_github_archive(date, hour):
     """
@@ -20,22 +21,21 @@ def download_github_archive(date, hour):
     else:
         print(f"Failed to download data for {date} at hour {hour}.")
 
-# Function to download data using multiple threads
-def download_github_archive_multithreaded(dates, hours):
+# Function to download data for an entire year
+def download_github_archive_for_year(year):
     threads = []
 
-    for date in dates:
-        for hour in hours:
-            thread = threading.Thread(target=download_github_archive, args=(date, hour))
-            threads.append(thread)
-            thread.start()
+    for month in range(1, 13):  # Loop through each month (1 to 12)
+        for day in range(1, calendar.monthrange(year, month)[1] + 1):  # Loop through each day
+            for hour in range(24):  # Loop through each hour (0 to 23)
+                date = f"{year}-{month:02d}-{day:02d}"
+                thread = threading.Thread(target=download_github_archive, args=(date, hour))
+                threads.append(thread)
+                thread.start()
 
     # Wait for all threads to finish
     for thread in threads:
         thread.join()
 
-# Example usage
-dates_to_download = ['2024-01-30', '2024-01-31']  # List of dates to download
-hours_to_download = [15, 16]  # List of hours to download
-
-download_github_archive_multithreaded(dates_to_download, hours_to_download)
+# Example usage to download data for the year 2024
+download_github_archive_for_year(2024)
