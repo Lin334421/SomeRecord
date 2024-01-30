@@ -1,0 +1,41 @@
+import requests
+import json
+import threading
+
+def download_github_archive(date, hour):
+    """
+    Download data from GitHub Archive for a specific date and hour.
+    :param date: A string representing the date in yyyy-mm-dd format.
+    :param hour: An integer representing the hour (0-23).
+    :return: None
+    """
+    url = f"http://data.githubarchive.org/{date}-{hour}.json.gz"
+    response = requests.get(url, stream=True)
+
+    if response.status_code == 200:
+        with open(f'github_archive_{date}_{hour}.json.gz', 'wb') as file:
+            for chunk in response.iter_content(chunk_size=128):
+                file.write(chunk)
+        print(f"Data for {date} at hour {hour} downloaded successfully.")
+    else:
+        print(f"Failed to download data for {date} at hour {hour}.")
+
+# Function to download data using multiple threads
+def download_github_archive_multithreaded(dates, hours):
+    threads = []
+
+    for date in dates:
+        for hour in hours:
+            thread = threading.Thread(target=download_github_archive, args=(date, hour))
+            threads.append(thread)
+            thread.start()
+
+    # Wait for all threads to finish
+    for thread in threads:
+        thread.join()
+
+# Example usage
+dates_to_download = ['2024-01-30', '2024-01-31']  # List of dates to download
+hours_to_download = [15, 16]  # List of hours to download
+
+download_github_archive_multithreaded(dates_to_download, hours_to_download)
