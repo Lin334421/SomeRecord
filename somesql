@@ -4179,3 +4179,229 @@ where repo_total_pr_merge_count >= 20
 order by pr_count_in_refer_repo desc
 
 
+
+
+
+
+
+
+
+
+-- 时间线
+select if(a.owner = '', b.search_key__owner, a.owner) as owner,
+       if(a.repo = '', b.search_key__repo, a.repo)    as repo,
+       concat(owner, '__', repo) as owner_repo,
+       if(a.month = 0, b.month, a.month)              as month,
+       pr_count,
+       issue_count,
+       commit_count,
+       total_lines,
+       issue_comment_count
+from (select if(a.owner = '', b.search_key__owner, a.owner) as owner,
+             if(a.repo = '', b.search_key__repo, a.repo)    as repo,
+             if(a.month = 0, b.month, a.month)              as month,
+             pr_count,
+             issue_count,
+             commit_count,
+             total_lines
+      from (select if(a.search_key__owner = '', b.search_key__owner, a.search_key__owner) as owner,
+                   if(a.search_key__repo = '', b.search_key__repo, a.search_key__repo)    as repo,
+                   if(a.month = 0, b.month, a.month)                                      as month,
+                   pr_count,
+                   issue_count
+            from (select search_key__owner, search_key__repo, month, count() as pr_count
+                  from (select search_key__owner, search_key__repo, id, toYYYYMM(created_at) as month, pull_request__url
+                        from github_issues
+                        where (search_key__owner = 'triton-lang'
+                            or search_key__owner = 'triton-inference-server')
+                          and search_key__repo != '.github'
+                          and pull_request__url != ''
+                        group by search_key__owner, search_key__repo, id, created_at, pull_request__url)
+                  group by search_key__owner, search_key__repo, month) as a global
+                     full join (select search_key__owner, search_key__repo, month, count() as issue_count
+                                from (select search_key__owner,
+                                             search_key__repo,
+                                             id,
+                                             toYYYYMM(created_at) as month,
+                                             pull_request__url
+                                      from github_issues
+                                      where (search_key__owner = 'triton-lang'
+                                          or search_key__owner = 'triton-inference-server')
+                                        and search_key__repo != '.github'
+                                        and pull_request__url = ''
+                                      group by search_key__owner, search_key__repo, id, created_at, pull_request__url)
+                                group by search_key__owner, search_key__repo, month) as b
+                               on a.search_key__owner = b.search_key__owner and
+                                  a.search_key__repo = b.search_key__repo and
+                                  a.month = b.month) as a global
+               full join (select search_key__owner,
+                                 search_key__repo,
+                                 concat(search_key__owner, '__', search_key__repo) as owner_repo,
+                                 toYYYYMM(authored_date)                           as month,
+                                 sum(total__deletions)                             as total_deletions,
+                                 sum(total__insertions)                            as total_insertion,
+                                 sum(total__lines)                                 as total_lines,
+                                 count()                                           as commit_count
+                          from gits
+                          where (search_key__owner = 'triton-lang'
+                              or search_key__owner = 'triton-inference-server')
+                            and search_key__repo != '.github'
+                          group by search_key__owner, search_key__repo, month) as b
+                         on a.owner = b.search_key__owner and a.repo = b.search_key__repo and
+                            a.month = b.month) as a global
+         full join (select search_key__owner, search_key__repo, month, count() as issue_comment_count
+                    from (select search_key__owner, search_key__repo, id, toYYYYMM(created_at) as month
+                          from github_issues_comments
+                          where (search_key__owner = 'triton-lang'
+                              or search_key__owner = 'triton-inference-server')
+                            and search_key__repo != '.github'
+                          group by search_key__owner, search_key__repo, id, created_at)
+                    group by search_key__owner, search_key__repo, month)
+    as b on a.owner = b.search_key__owner and a.repo = b.search_key__repo and a.month = b.month
+;
+-- 公司
+select if(a.owner = '', b.search_key__owner, a.owner) as owner,
+       if(a.repo = '', b.search_key__repo, a.repo)    as repo,
+       if(a.company = '', b.company, a.company)       as company,
+       concat(owner, '__', repo)                      as owner_repo,
+
+       issues_count,
+       pr_count,
+       issue_comment_count,
+       commit_count
+from (select if(a.owner = '', b.search_key__owner, a.owner) as owner,
+             if(a.repo = '', b.search_key__repo, a.repo)    as repo,
+             if(a.company = '', b.company, a.company)       as company,
+             issues_count,
+             pr_count,
+             issue_comment_count
+      from (select if(a.search_key__owner = '', b.search_key__owner, a.search_key__owner) as owner,
+                   if(a.search_key__repo = '', b.search_key__repo, a.search_key__repo)    as repo,
+                   if(a.company = '', b.company, a.company)                               as company,
+                   pr_count,
+                   issues_count
+            from (select search_key__owner,
+                         search_key__repo,
+                         if(company = '', '其他', company) as company,
+                         count()                           as pr_count
+                  from (select a.*, b.company
+                        from (select search_key__owner, search_key__repo, id, user__login, pull_request__url
+                              from github_issues
+                              where (search_key__owner = 'triton-lang'
+                                  or search_key__owner = 'triton-inference-server')
+                                and search_key__repo != '.github'
+                                and pull_request__url != ''
+                              group by search_key__owner, search_key__repo, id, pull_request__url,
+                                       user__login) as a global
+                                 left join (select author__login, company
+                                            from (select author__login, company
+                                                  from commit_company
+                                                  where (search_key__owner = 'triton-lang'
+                                                      or search_key__owner = 'triton-inference-server')
+                                                    and search_key__repo != '.github'
+                                                    and author__login != ''
+                                                    and commit_company.company != ''
+                                                  group by author__login, company
+                                                  union all
+                                                  select login,
+                                                         if(final_company_inferred_from_company = 'facebook', 'meta',
+                                                            final_company_inferred_from_company) as company
+                                                  from github_profile
+                                                  where github_profile.final_company_inferred_from_company != ''
+                                                    and final_company_inferred_from_company != '无'
+                                                  group by login, final_company_inferred_from_company)
+                                            group by author__login, company
+                                            order by author__login) as b on a.user__login = b.author__login)
+                  group by search_key__owner, search_key__repo, company) as a global
+                     full join (select search_key__owner,
+                                       search_key__repo,
+                                       if(company = '', '其他', company) as company,
+                                       count()                           as issues_count
+                                from (select a.*, b.company
+                                      from (select search_key__owner,
+                                                   search_key__repo,
+                                                   id,
+                                                   user__login,
+                                                   pull_request__url
+                                            from github_issues
+                                            where (search_key__owner = 'triton-lang'
+                                                or search_key__owner = 'triton-inference-server')
+                                              and search_key__repo != '.github'
+                                              and pull_request__url = ''
+                                            group by search_key__owner, search_key__repo, id, pull_request__url,
+                                                     user__login) as a global
+                                               left join (select author__login, company
+                                                          from (select author__login, company
+                                                                from commit_company
+                                                                where (search_key__owner = 'triton-lang'
+                                                                    or search_key__owner = 'triton-inference-server')
+                                                                  and search_key__repo != '.github'
+                                                                  and author__login != ''
+                                                                  and commit_company.company != ''
+                                                                group by author__login, company
+                                                                union all
+                                                                select login,
+                                                                       if(final_company_inferred_from_company =
+                                                                          'facebook',
+                                                                          'meta',
+                                                                          final_company_inferred_from_company) as company
+                                                                from github_profile
+                                                                where github_profile.final_company_inferred_from_company != ''
+                                                                  and final_company_inferred_from_company != '无'
+                                                                group by login, final_company_inferred_from_company)
+                                                          group by author__login, company
+                                                          order by author__login) as b
+                                                         on a.user__login = b.author__login)
+                                group by search_key__owner, search_key__repo, company) as b
+                               on a.search_key__owner = b.search_key__owner and
+                                  a.search_key__repo = b.search_key__repo and
+                                  a.company = b.company
+               ) as a global
+               full join (select search_key__owner,
+                                 search_key__repo,
+                                 if(company = '', '其他', company) as company,
+                                 count()                              issue_comment_count
+                          from (select a.*, b.company
+                                from (select search_key__owner, search_key__repo, id, user__login
+                                      from github_issues_comments
+                                      where (search_key__owner = 'triton-lang'
+                                          or search_key__owner = 'triton-inference-server')
+                                        and search_key__repo != '.github'
+                                      group by search_key__owner, search_key__repo, id, user__login) as a global
+                                         left join (select author__login, company
+                                                    from (select author__login, company
+                                                          from commit_company
+                                                          where (search_key__owner = 'triton-lang'
+                                                              or search_key__owner = 'triton-inference-server')
+                                                            and search_key__repo != '.github'
+                                                            and author__login != ''
+                                                            and commit_company.company != ''
+                                                          group by author__login, company
+                                                          union all
+                                                          select login,
+                                                                 if(final_company_inferred_from_company = 'facebook',
+                                                                    'meta',
+                                                                    final_company_inferred_from_company) as company
+                                                          from github_profile
+                                                          where github_profile.final_company_inferred_from_company != ''
+                                                            and final_company_inferred_from_company != '无'
+                                                          group by login, final_company_inferred_from_company)
+                                                    group by author__login, company
+                                                    order by author__login) as b on a.user__login = b.author__login)
+                          group by search_key__owner, search_key__repo, company) as b
+                         on a.owner = b.search_key__owner and a.repo = b.search_key__repo and
+                            a.company = b.company) as a global
+         full join (select commit_company.search_key__owner,
+                           commit_company.search_key__repo,
+                           concat(search_key__owner, '__', search_key__repo) as owner_repo,
+                           if(company = '', '其他', company)                 as company,
+                           count()                                              commit_count
+                    from commit_company
+                    where (search_key__owner = 'triton-lang'
+                        or search_key__owner = 'triton-inference-server')
+                      and search_key__repo != '.github'
+                    group by commit_company.search_key__owner, commit_company.search_key__repo, company
+                    order by commit_company.search_key__owner, commit_company.search_key__repo, commit_count desc) as b
+                   on a.owner = b.search_key__owner and a.repo = b.search_key__repo and a.company = b.company
+;
+
