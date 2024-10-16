@@ -4405,3 +4405,17 @@ from (select if(a.owner = '', b.search_key__owner, a.owner) as owner,
                    on a.owner = b.search_key__owner and a.repo = b.search_key__repo and a.company = b.company
 ;
 
+-- 代码学习 从开始版本到当前版本按照时间升序排序hexsha
+select hexsha,
+       message,
+       `files.file_name`,
+       `files.insertions`,
+       `files.deletions`,
+       `files.lines`,
+       authored_date,
+       if(length(parents) != 1, 'merge', 'commit') as commit_type
+from gits
+where search_key__owner = 'pallets'
+  and search_key__repo = 'flask'
+order by authored_date
+
